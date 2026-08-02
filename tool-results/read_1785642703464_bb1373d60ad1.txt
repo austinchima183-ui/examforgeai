@@ -1,0 +1,813 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI - Supabase Database Schema
+     3→-- ============================================================================
+     4→-- Production-ready schema for the ExamForge AI platform.
+     5→-- Manages schools, users, classes, subjects, notifications, and audit logs.
+     6→--
+     7→-- Dependencies: Supabase Auth (auth.users)
+     8→-- ============================================================================
+     9→
+    10→BEGIN;
+    11→
+    12→-- ============================================================================
+    13→-- 1. CUSTOM ENUMERATION TYPES
+    14→-- ============================================================================
+    15→
+    16→DO $$
+    17→BEGIN
+    18→  -- user_role: Defines the hierarchy of user permissions
+    19→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    20→    CREATE TYPE user_role AS ENUM (
+    21→      'super_admin',
+    22→      'school_admin',
+    23→      'teacher',
+    24→      'student'
+    25→    );
+    26→  END IF;
+    27→
+    28→  -- subscription_status: School subscription tier
+    29→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_status') THEN
+    30→    CREATE TYPE subscription_status AS ENUM (
+    31→      'free',
+    32→      'basic',
+    33→      'premium',
+    34→      'enterprise'
+    35→    );
+    36→  END IF;
+    37→
+    38→  -- exam_status: Lifecycle states for an exam
+    39→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'exam_status') THEN
+    40→    CREATE TYPE exam_status AS ENUM (
+    41→      'draft',
+    42→      'published',
+    43→      'active',
+    44→      'completed',
+    45→      'archived'
+    46→    );
+    47→  END IF;
+    48→
+    49→  -- notification_type: Category of notification
+    50→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
+    51→    CREATE TYPE notification_type AS ENUM (
+    52→      'exam',
+    53→      'system',
+    54→      'result',
+    55→      'reminder'
+    56→    );
+    57→  END IF;
+    58→
+    59→  -- question_type: Supported question formats
+    60→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'question_type') THEN
+    61→    CREATE TYPE question_type AS ENUM (
+    62→      'multiple_choice',
+    63→      'true_false',
+    64→      'short_answer',
+    65→      'essay',
+    66→      'fill_in_blank'
+    67→    );
+    68→  END IF;
+    69→END
+    70→$$;
+    71→
+    72→-- ============================================================================
+    73→-- 2. SCHOOLS TABLE
+    74→-- ============================================================================
+    75→
+    76→CREATE TABLE IF NOT EXISTS schools (
+    77→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    78→  name                  TEXT NOT NULL,
+    79→  code                  TEXT UNIQUE NOT NULL,               -- School registration code
+    80→  address               TEXT,
+    81→  city                  TEXT,
+    82→  state                 TEXT,
+    83→  country               TEXT DEFAULT 'Nigeria',
+    84→  phone                 TEXT,
+    85→  email                 TEXT UNIQUE,
+    86→  website               TEXT,
+    87→  logo_url              TEXT,
+    88→  subscription_status   subscription_status DEFAULT 'free',
+    89→  subscription_expires_at TIMESTAMPTZ,
+    90→  max_students          INTEGER DEFAULT 100,
+    91→  max_teachers          INTEGER DEFAULT 10,
+    92→  is_active             BOOLEAN DEFAULT true,
+    93→  settings              JSONB DEFAULT '{}',
+    94→  created_at            TIMESTAMPTZ DEFAULT now(),
+    95→  updated_at            TIMESTAMPTZ DEFAULT now()
+    96→);
+    97→
+    98→COMMENT ON TABLE schools IS 'Registered schools / institutions on the platform';
+    99→COMMENT ON COLUMN schools.code IS 'Unique registration code used to identify and join a school';
+   100→COMMENT ON COLUMN schools.subscription_status IS 'Current subscription tier of the school';
+   101→COMMENT ON COLUMN schools.settings IS 'Arbitrary school-wide configuration stored as JSONB';
+   102→
+   103→-- ============================================================================
+   104→-- 3. USERS TABLE (extends Supabase auth.users)
+   105→-- ============================================================================
+   106→
+   107→CREATE TABLE IF NOT EXISTS users (
+   108→  id                    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+   109→  email                 TEXT NOT NULL UNIQUE,
+   110→  full_name             TEXT NOT NULL,
+   111→  phone                 TEXT,
+   112→  avatar_url            TEXT,
+   113→  role                  user_role NOT NULL DEFAULT 'student',
+   114→  school_id             UUID REFERENCES schools(id) ON DELETE SET NULL,
+   115→  is_active             BOOLEAN DEFAULT true,
+   116→  is_email_verified     BOOLEAN DEFAULT false,
+   117→  last_login_at         TIMESTAMPTZ,
+   118→  settings              JSONB DEFAULT '{}',
+   119→  created_at            TIMESTAMPTZ DEFAULT now(),
+   120→  updated_at            TIMESTAMPTZ DEFAULT now()
+   121→);
+   122→
+   123→COMMENT ON TABLE users IS 'Application-level user profiles linked 1-to-1 with auth.users';
+   124→COMMENT ON COLUMN users.role IS 'Role-based access control: super_admin > school_admin > teacher > student';
+   125→COMMENT ON COLUMN users.school_id IS 'The school the user belongs to; NULL for super_admins';
+   126→
+   127→-- ============================================================================
+   128→-- 4. CLASSES TABLE
+   129→-- ============================================================================
+   130→
+   131→CREATE TABLE IF NOT EXISTS classes (
+   132→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   133→  name                  TEXT NOT NULL,                       -- e.g. "SS1A", "JSS2B"
+   134→  section               TEXT,                                -- e.g. "A", "B", "Science", "Arts"
+   135→  school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   136→  teacher_id            UUID REFERENCES users(id) ON DELETE SET NULL,  -- Class teacher
+   137→  academic_year         TEXT NOT NULL,                       -- e.g. "2024/2025"
+   138→  grade_level           TEXT,                                -- e.g. "SS1", "JSS2"
+   139→  capacity              INTEGER DEFAULT 40,
+   140→  is_active             BOOLEAN DEFAULT true,
+   141→  created_at            TIMESTAMPTZ DEFAULT now(),
+   142→  updated_at            TIMESTAMPTZ DEFAULT now()
+   143→);
+   144→
+   145→COMMENT ON TABLE classes IS 'Class / arm within a school (e.g. SS1A - Science)';
+   146→COMMENT ON COLUMN classes.teacher_id IS 'The class teacher assigned to this class';
+   147→COMMENT ON COLUMN classes.academic_year IS 'Academic session, e.g. 2024/2025';
+   148→
+   149→-- ============================================================================
+   150→-- 5. SUBJECTS TABLE
+   151→-- ============================================================================
+   152→
+   153→CREATE TABLE IF NOT EXISTS subjects (
+   154→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   155→  name                  TEXT NOT NULL,                       -- e.g. "Mathematics", "English Language"
+   156→  code                  TEXT NOT NULL,                       -- e.g. "MTH", "ENG"
+   157→  description           TEXT,
+   158→  school_id             UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL for system-wide subjects
+   159→  category              TEXT,                                -- e.g. "Science", "Arts", "Commercial"
+   160→  icon_url              TEXT,
+   161→  is_active             BOOLEAN DEFAULT true,
+   162→  created_at            TIMESTAMPTZ DEFAULT now(),
+   163→  updated_at            TIMESTAMPTZ DEFAULT now()
+   164→);
+   165→
+   166→COMMENT ON TABLE subjects IS 'Subjects available for exams; school_id NULL means system-provided';
+   167→COMMENT ON COLUMN subjects.code IS 'Short code identifier for the subject (e.g. MTH, ENG)';
+   168→
+   169→-- ============================================================================
+   170→-- 6. CLASS_SUBJECTS TABLE (many-to-many: classes <-> subjects)
+   171→-- ============================================================================
+   172→
+   173→CREATE TABLE IF NOT EXISTS class_subjects (
+   174→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   175→  class_id              UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+   176→  subject_id            UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+   177→  teacher_id            UUID REFERENCES users(id) ON DELETE SET NULL,
+   178→  created_at            TIMESTAMPTZ DEFAULT now(),
+   179→  UNIQUE(class_id, subject_id)
+   180→);
+   181→
+   182→COMMENT ON TABLE class_subjects IS 'Maps which subjects are offered in which class and who teaches them';
+   183→
+   184→-- ============================================================================
+   185→-- 7. CLASS_STUDENTS TABLE (many-to-many: classes <-> students)
+   186→-- ============================================================================
+   187→
+   188→CREATE TABLE IF NOT EXISTS class_students (
+   189→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   190→  class_id              UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+   191→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   192→  enrolled_at           TIMESTAMPTZ DEFAULT now(),
+   193→  is_active             BOOLEAN DEFAULT true,
+   194→  UNIQUE(class_id, student_id)
+   195→);
+   196→
+   197→COMMENT ON TABLE class_students IS 'Enrolment records linking students to classes';
+   198→
+   199→-- ============================================================================
+   200→-- 8. NOTIFICATIONS TABLE
+   201→-- ============================================================================
+   202→
+   203→CREATE TABLE IF NOT EXISTS notifications (
+   204→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   205→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   206→  type                  notification_type NOT NULL DEFAULT 'system',
+   207→  title                 TEXT NOT NULL,
+   208→  message               TEXT NOT NULL,
+   209→  data                  JSONB DEFAULT '{}',
+   210→  is_read               BOOLEAN DEFAULT false,
+   211→  read_at               TIMESTAMPTZ,
+   212→  created_at            TIMESTAMPTZ DEFAULT now()
+   213→);
+   214→
+   215→COMMENT ON TABLE notifications IS 'In-app notifications for users';
+   216→COMMENT ON COLUMN notifications.data IS 'Optional structured payload (e.g. exam_id, result summary)';
+   217→
+   218→-- ============================================================================
+   219→-- 9. AUDIT LOG TABLE
+   220→-- ============================================================================
+   221→
+   222→CREATE TABLE IF NOT EXISTS audit_log (
+   223→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   224→  user_id               UUID REFERENCES users(id) ON DELETE SET NULL,
+   225→  action                TEXT NOT NULL,                       -- e.g. "create", "update", "delete"
+   226→  resource_type         TEXT NOT NULL,                       -- e.g. "exam", "user", "school"
+   227→  resource_id           UUID,
+   228→  details               JSONB DEFAULT '{}',
+   229→  ip_address            INET,
+   230→  created_at            TIMESTAMPTZ DEFAULT now()
+   231→);
+   232→
+   233→COMMENT ON TABLE audit_log IS 'Immutable audit trail for all significant actions';
+   234→
+   235→-- ============================================================================
+   236→-- INDEXES
+   237→-- ============================================================================
+   238→
+   239→-- ---------------------------------------------------------------------------
+   240→-- Foreign key columns (speed up JOINs and lookups)
+   241→-- ---------------------------------------------------------------------------
+   242→
+   243→-- users
+   244→CREATE INDEX IF NOT EXISTS idx_users_school_id ON users(school_id);
+   245→
+   246→-- classes
+   247→CREATE INDEX IF NOT EXISTS idx_classes_school_id ON classes(school_id);
+   248→CREATE INDEX IF NOT EXISTS idx_classes_teacher_id ON classes(teacher_id);
+   249→
+   250→-- subjects
+   251→CREATE INDEX IF NOT EXISTS idx_subjects_school_id ON subjects(school_id);
+   252→
+   253→-- class_subjects
+   254→CREATE INDEX IF NOT EXISTS idx_class_subjects_class_id ON class_subjects(class_id);
+   255→CREATE INDEX IF NOT EXISTS idx_class_subjects_subject_id ON class_subjects(subject_id);
+   256→CREATE INDEX IF NOT EXISTS idx_class_subjects_teacher_id ON class_subjects(teacher_id);
+   257→
+   258→-- class_students
+   259→CREATE INDEX IF NOT EXISTS idx_class_students_class_id ON class_students(class_id);
+   260→CREATE INDEX IF NOT EXISTS idx_class_students_student_id ON class_students(student_id);
+   261→
+   262→-- notifications
+   263→CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+   264→
+   265→-- audit_log
+   266→CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
+   267→
+   268→-- ---------------------------------------------------------------------------
+   269→-- Business-query columns
+   270→-- ---------------------------------------------------------------------------
+   271→
+   272→-- users
+   273→CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+   274→CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+   275→
+   276→-- schools
+   277→CREATE INDEX IF NOT EXISTS idx_schools_code ON schools(code);
+   278→CREATE INDEX IF NOT EXISTS idx_schools_is_active ON schools(is_active);
+   279→
+   280→-- subjects
+   281→CREATE INDEX IF NOT EXISTS idx_subjects_code ON subjects(code);
+   282→
+   283→-- notifications (composite: unread count per user)
+   284→CREATE INDEX IF NOT EXISTS idx_notifications_user_id_is_read ON notifications(user_id, is_read);
+   285→CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+   286→
+   287→-- audit_log
+   288→CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+   289→
+   290→-- ============================================================================
+   291→-- HELPER FUNCTIONS
+   292→-- ============================================================================
+   293→
+   294→-- ---------------------------------------------------------------------------
+   295→-- update_updated_at_column()
+   296→-- Automatically sets updated_at = now() on every row update.
+   297→-- ---------------------------------------------------------------------------
+   298→CREATE OR REPLACE FUNCTION update_updated_at_column()
+   299→RETURNS TRIGGER AS $$
+   300→BEGIN
+   301→  NEW.updated_at = now();
+   302→  RETURN NEW;
+   303→END;
+   304→$$ LANGUAGE plpgsql;
+   305→
+   306→COMMENT ON FUNCTION update_updated_at_column() IS
+   307→  'Trigger function: automatically refreshes updated_at to the current timestamp';
+   308→
+   309→-- ---------------------------------------------------------------------------
+   310→-- is_school_member(school_id)
+   311→-- Returns TRUE if the currently authenticated user belongs to the given school.
+   312→-- ---------------------------------------------------------------------------
+   313→CREATE OR REPLACE FUNCTION is_school_member(target_school_id UUID)
+   314→RETURNS BOOLEAN AS $$
+   315→BEGIN
+   316→  RETURN EXISTS (
+   317→    SELECT 1
+   318→    FROM users
+   319→    WHERE id = auth.uid()
+   320→      AND school_id = target_school_id
+   321→  );
+   322→END;
+   323→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   324→
+   325→COMMENT ON FUNCTION is_school_member(UUID) IS
+   326→  'Checks whether the current auth user is a member of the specified school';
+   327→
+   328→-- ---------------------------------------------------------------------------
+   329→-- get_user_role()
+   330→-- Returns the user_role of the currently authenticated user.
+   331→-- ---------------------------------------------------------------------------
+   332→CREATE OR REPLACE FUNCTION get_user_role()
+   333→RETURNS user_role AS $$
+   334→DECLARE
+   335→  current_role user_role;
+   336→BEGIN
+   337→  SELECT role INTO current_role
+   338→  FROM users
+   339→  WHERE id = auth.uid();
+   340→
+   341→  RETURN current_role;
+   342→END;
+   343→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   344→
+   345→COMMENT ON FUNCTION get_user_role() IS
+   346→  'Returns the role of the currently authenticated user';
+   347→
+   348→-- ---------------------------------------------------------------------------
+   349→-- handle_new_user()
+   350→-- Trigger function: automatically creates a user profile row in public.users
+   351→-- after a new row is inserted into auth.users.
+   352→-- ---------------------------------------------------------------------------
+   353→CREATE OR REPLACE FUNCTION handle_new_user()
+   354→RETURNS TRIGGER AS $$
+   355→BEGIN
+   356→  INSERT INTO public.users (id, email, full_name, role, is_email_verified)
+   357→  VALUES (
+   358→    NEW.id,
+   359→    NEW.email,
+   360→    COALESCE(NEW.raw_user_meta_data ->> 'full_name', NEW.email),
+   361→    COALESCE(
+   362→      (NEW.raw_user_meta_data ->> 'role')::user_role,
+   363→      'student'
+   364→    ),
+   365→    NEW.email_confirmed_at IS NOT NULL
+   366→  );
+   367→  RETURN NEW;
+   368→END;
+   369→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   370→
+   371→COMMENT ON FUNCTION handle_new_user() IS
+   372→  'Trigger: auto-creates a public.users profile when a new auth.users row is inserted';
+   373→
+   374→-- ============================================================================
+   375→-- TRIGGERS
+   376→-- ============================================================================
+   377→
+   378→-- ---------------------------------------------------------------------------
+   379→-- Auto-update updated_at on all tables that have the column
+   380→-- ---------------------------------------------------------------------------
+   381→
+   382→-- schools
+   383→DROP TRIGGER IF EXISTS set_schools_updated_at ON schools;
+   384→CREATE TRIGGER set_schools_updated_at
+   385→  BEFORE UPDATE ON schools
+   386→  FOR EACH ROW
+   387→  EXECUTE FUNCTION update_updated_at_column();
+   388→
+   389→-- users
+   390→DROP TRIGGER IF EXISTS set_users_updated_at ON users;
+   391→CREATE TRIGGER set_users_updated_at
+   392→  BEFORE UPDATE ON users
+   393→  FOR EACH ROW
+   394→  EXECUTE FUNCTION update_updated_at_column();
+   395→
+   396→-- classes
+   397→DROP TRIGGER IF EXISTS set_classes_updated_at ON classes;
+   398→CREATE TRIGGER set_classes_updated_at
+   399→  BEFORE UPDATE ON classes
+   400→  FOR EACH ROW
+   401→  EXECUTE FUNCTION update_updated_at_column();
+   402→
+   403→-- subjects
+   404→DROP TRIGGER IF EXISTS set_subjects_updated_at ON subjects;
+   405→CREATE TRIGGER set_subjects_updated_at
+   406→  BEFORE UPDATE ON subjects
+   407→  FOR EACH ROW
+   408→  EXECUTE FUNCTION update_updated_at_column();
+   409→
+   410→-- ---------------------------------------------------------------------------
+   411→-- Auto-create user profile after auth.users insert
+   412→-- ---------------------------------------------------------------------------
+   413→
+   414→DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+   415→CREATE TRIGGER on_auth_user_created
+   416→  AFTER INSERT ON auth.users
+   417→  FOR EACH ROW
+   418→  EXECUTE FUNCTION handle_new_user();
+   419→
+   420→-- ============================================================================
+   421→-- ROW LEVEL SECURITY (RLS)
+   422→-- ============================================================================
+   423→
+   424→-- ---------------------------------------------------------------------------
+   425→-- Enable RLS on ALL data tables
+   426→-- ---------------------------------------------------------------------------
+   427→
+   428→ALTER TABLE schools ENABLE ROW LEVEL SECURITY;
+   429→ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+   430→ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+   431→ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+   432→ALTER TABLE class_subjects ENABLE ROW LEVEL SECURITY;
+   433→ALTER TABLE class_students ENABLE ROW LEVEL SECURITY;
+   434→ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+   435→ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+   436→
+   437→-- ===========================================================================
+   438→-- SCHOOLS RLS POLICIES
+   439→-- ===========================================================================
+   440→
+   441→-- Any authenticated user can read active schools
+   442→CREATE POLICY "Authenticated users can read active schools"
+   443→  ON schools FOR SELECT
+   444→  TO authenticated
+   445→  USING (is_active = true);
+   446→
+   447→-- Super admins can read all schools (including inactive)
+   448→CREATE POLICY "Super admins can read all schools"
+   449→  ON schools FOR SELECT
+   450→  TO authenticated
+   451→  USING (get_user_role() = 'super_admin');
+   452→
+   453→-- School admins can update their own school
+   454→CREATE POLICY "School admins can update own school"
+   455→  ON schools FOR UPDATE
+   456→  TO authenticated
+   457→  USING (
+   458→    role = 'school_admin'
+   459→    AND school_id = id
+   460→  )
+   461→  WITH CHECK (
+   462→    role = 'school_admin'
+   463→    AND school_id = id
+   464→  );
+   465→
+   466→-- Super admins can do everything on schools
+   467→CREATE POLICY "Super admins have full access to schools"
+   468→  ON schools FOR ALL
+   469→  TO authenticated
+   470→  USING (get_user_role() = 'super_admin')
+   471→  WITH CHECK (get_user_role() = 'super_admin');
+   472→
+   473→-- Super admins can insert schools
+   474→CREATE POLICY "Super admins can insert schools"
+   475→  ON schools FOR INSERT
+   476→  TO authenticated
+   477→  WITH CHECK (get_user_role() = 'super_admin');
+   478→
+   479→-- ===========================================================================
+   480→-- USERS RLS POLICIES
+   481→-- ===========================================================================
+   482→
+   483→-- Users can read their own row
+   484→CREATE POLICY "Users can read own row"
+   485→  ON users FOR SELECT
+   486→  TO authenticated
+   487→  USING (id = auth.uid());
+   488→
+   489→-- School admins can read users in their school
+   490→CREATE POLICY "School admins can read school users"
+   491→  ON users FOR SELECT
+   492→  TO authenticated
+   493→  USING (
+   494→    get_user_role() = 'school_admin'
+   495→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   496→    AND school_id IS NOT NULL
+   497→  );
+   498→
+   499→-- Super admins can read all users
+   500→CREATE POLICY "Super admins can read all users"
+   501→  ON users FOR SELECT
+   502→  TO authenticated
+   503→  USING (get_user_role() = 'super_admin');
+   504→
+   505→-- Users can update their own row (except role)
+   506→CREATE POLICY "Users can update own row"
+   507→  ON users FOR UPDATE
+   508→  TO authenticated
+   509→  USING (id = auth.uid())
+   510→  WITH CHECK (
+   511→    id = auth.uid()
+   512→    AND role = (SELECT role FROM users WHERE id = auth.uid())  -- prevent role change
+   513→  );
+   514→
+   515→-- Only super admins can change roles
+   516→CREATE POLICY "Super admins can update any user"
+   517→  ON users FOR UPDATE
+   518→  TO authenticated
+   519→  USING (get_user_role() = 'super_admin')
+   520→  WITH CHECK (get_user_role() = 'super_admin');
+   521→
+   522→-- Super admins can delete users
+   523→CREATE POLICY "Super admins can delete users"
+   524→  ON users FOR DELETE
+   525→  TO authenticated
+   526→  USING (get_user_role() = 'super_admin');
+   527→
+   528→-- ===========================================================================
+   529→-- CLASSES RLS POLICIES
+   530→-- ===========================================================================
+   531→
+   532→-- Teachers can read classes they teach (as class teacher or via class_subjects)
+   533→CREATE POLICY "Teachers can read classes they teach"
+   534→  ON classes FOR SELECT
+   535→  TO authenticated
+   536→  USING (
+   537→    teacher_id = auth.uid()
+   538→    OR EXISTS (
+   539→      SELECT 1 FROM class_subjects cs
+   540→      WHERE cs.class_id = id AND cs.teacher_id = auth.uid()
+   541→    )
+   542→  );
+   543→
+   544→-- Students can read classes they are enrolled in
+   545→CREATE POLICY "Students can read enrolled classes"
+   546→  ON classes FOR SELECT
+   547→  TO authenticated
+   548→  USING (
+   549→    EXISTS (
+   550→      SELECT 1 FROM class_students cst
+   551→      WHERE cst.class_id = id
+   552→        AND cst.student_id = auth.uid()
+   553→        AND cst.is_active = true
+   554→    )
+   555→  );
+   556→
+   557→-- School admins can CRUD classes in their school
+   558→CREATE POLICY "School admins can read school classes"
+   559→  ON classes FOR SELECT
+   560→  TO authenticated
+   561→  USING (
+   562→    get_user_role() = 'school_admin'
+   563→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   564→  );
+   565→
+   566→CREATE POLICY "School admins can insert school classes"
+   567→  ON classes FOR INSERT
+   568→  TO authenticated
+   569→  WITH CHECK (
+   570→    get_user_role() = 'school_admin'
+   571→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   572→  );
+   573→
+   574→CREATE POLICY "School admins can update school classes"
+   575→  ON classes FOR UPDATE
+   576→  TO authenticated
+   577→  USING (
+   578→    get_user_role() = 'school_admin'
+   579→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   580→  )
+   581→  WITH CHECK (
+   582→    get_user_role() = 'school_admin'
+   583→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   584→  );
+   585→
+   586→CREATE POLICY "School admins can delete school classes"
+   587→  ON classes FOR DELETE
+   588→  TO authenticated
+   589→  USING (
+   590→    get_user_role() = 'school_admin'
+   591→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   592→  );
+   593→
+   594→-- Super admins can read all classes
+   595→CREATE POLICY "Super admins can read all classes"
+   596→  ON classes FOR SELECT
+   597→  TO authenticated
+   598→  USING (get_user_role() = 'super_admin');
+   599→
+   600→-- ===========================================================================
+   601→-- SUBJECTS RLS POLICIES
+   602→-- ===========================================================================
+   603→
+   604→-- All authenticated users in a school can read their school's subjects + system subjects
+   605→CREATE POLICY "Authenticated users can read school subjects"
+   606→  ON subjects FOR SELECT
+   607→  TO authenticated
+   608→  USING (
+   609→    school_id IS NULL  -- system-wide subjects
+   610→    OR school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   611→  );
+   612→
+   613→-- School admins can insert subjects for their school
+   614→CREATE POLICY "School admins can insert school subjects"
+   615→  ON subjects FOR INSERT
+   616→  TO authenticated
+   617→  WITH CHECK (
+   618→    get_user_role() = 'school_admin'
+   619→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   620→  );
+   621→
+   622→-- School admins can update subjects in their school
+   623→CREATE POLICY "School admins can update school subjects"
+   624→  ON subjects FOR UPDATE
+   625→  TO authenticated
+   626→  USING (
+   627→    get_user_role() = 'school_admin'
+   628→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   629→  )
+   630→  WITH CHECK (
+   631→    get_user_role() = 'school_admin'
+   632→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   633→  );
+   634→
+   635→-- School admins can delete subjects in their school
+   636→CREATE POLICY "School admins can delete school subjects"
+   637→  ON subjects FOR DELETE
+   638→  TO authenticated
+   639→  USING (
+   640→    get_user_role() = 'school_admin'
+   641→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   642→  );
+   643→
+   644→-- Super admins have full access to subjects
+   645→CREATE POLICY "Super admins have full access to subjects"
+   646→  ON subjects FOR ALL
+   647→  TO authenticated
+   648→  USING (get_user_role() = 'super_admin')
+   649→  WITH CHECK (get_user_role() = 'super_admin');
+   650→
+   651→-- ===========================================================================
+   652→-- CLASS_SUBJECTS RLS POLICIES
+   653→-- ===========================================================================
+   654→
+   655→-- Teachers can read class_subjects for classes they teach
+   656→CREATE POLICY "Teachers can read own class_subjects"
+   657→  ON class_subjects FOR SELECT
+   658→  TO authenticated
+   659→  USING (
+   660→    teacher_id = auth.uid()
+   661→    OR EXISTS (
+   662→      SELECT 1 FROM classes c WHERE c.id = class_id AND c.teacher_id = auth.uid()
+   663→    )
+   664→  );
+   665→
+   666→-- Students can read class_subjects for classes they are in
+   667→CREATE POLICY "Students can read enrolled class_subjects"
+   668→  ON class_subjects FOR SELECT
+   669→  TO authenticated
+   670→  USING (
+   671→    EXISTS (
+   672→      SELECT 1 FROM class_students cst
+   673→      WHERE cst.class_id = class_id
+   674→        AND cst.student_id = auth.uid()
+   675→        AND cst.is_active = true
+   676→    )
+   677→  );
+   678→
+   679→-- School admins can CRUD class_subjects in their school
+   680→CREATE POLICY "School admins can manage class_subjects"
+   681→  ON class_subjects FOR ALL
+   682→  TO authenticated
+   683→  USING (
+   684→    get_user_role() = 'school_admin'
+   685→    AND EXISTS (
+   686→      SELECT 1 FROM classes c
+   687→      WHERE c.id = class_id
+   688→        AND c.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   689→    )
+   690→  )
+   691→  WITH CHECK (
+   692→    get_user_role() = 'school_admin'
+   693→    AND EXISTS (
+   694→      SELECT 1 FROM classes c
+   695→      WHERE c.id = class_id
+   696→        AND c.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   697→    )
+   698→  );
+   699→
+   700→-- Super admins can read all class_subjects
+   701→CREATE POLICY "Super admins can read all class_subjects"
+   702→  ON class_subjects FOR SELECT
+   703→  TO authenticated
+   704→  USING (get_user_role() = 'super_admin');
+   705→
+   706→-- ===========================================================================
+   707→-- CLASS_STUDENTS RLS POLICIES
+   708→-- ===========================================================================
+   709→
+   710→-- Students can read their own enrolments
+   711→CREATE POLICY "Students can read own enrolments"
+   712→  ON class_students FOR SELECT
+   713→  TO authenticated
+   714→  USING (student_id = auth.uid());
+   715→
+   716→-- Teachers can read enrolments for classes they teach
+   717→CREATE POLICY "Teachers can read class enrolments"
+   718→  ON class_students FOR SELECT
+   719→  TO authenticated
+   720→  USING (
+   721→    EXISTS (
+   722→      SELECT 1 FROM classes c WHERE c.id = class_id AND c.teacher_id = auth.uid()
+   723→    )
+   724→    OR EXISTS (
+   725→      SELECT 1 FROM class_subjects cs WHERE cs.class_id = class_id AND cs.teacher_id = auth.uid()
+   726→    )
+   727→  );
+   728→
+   729→-- School admins can CRUD enrolments in their school
+   730→CREATE POLICY "School admins can manage class_students"
+   731→  ON class_students FOR ALL
+   732→  TO authenticated
+   733→  USING (
+   734→    get_user_role() = 'school_admin'
+   735→    AND EXISTS (
+   736→      SELECT 1 FROM classes c
+   737→      WHERE c.id = class_id
+   738→        AND c.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   739→    )
+   740→  )
+   741→  WITH CHECK (
+   742→    get_user_role() = 'school_admin'
+   743→    AND EXISTS (
+   744→      SELECT 1 FROM classes c
+   745→      WHERE c.id = class_id
+   746→        AND c.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   747→    )
+   748→  );
+   749→
+   750→-- Super admins can read all class_students
+   751→CREATE POLICY "Super admins can read all class_students"
+   752→  ON class_students FOR SELECT
+   753→  TO authenticated
+   754→  USING (get_user_role() = 'super_admin');
+   755→
+   756→-- ===========================================================================
+   757→-- NOTIFICATIONS RLS POLICIES
+   758→-- ===========================================================================
+   759→
+   760→-- Users can only read their own notifications
+   761→CREATE POLICY "Users can read own notifications"
+   762→  ON notifications FOR SELECT
+   763→  TO authenticated
+   764→  USING (user_id = auth.uid());
+   765→
+   766→-- Users can update their own notifications (mark as read)
+   767→CREATE POLICY "Users can update own notifications"
+   768→  ON notifications FOR UPDATE
+   769→  TO authenticated
+   770→  USING (user_id = auth.uid())
+   771→  WITH CHECK (user_id = auth.uid());
+   772→
+   773→-- Users can delete their own notifications
+   774→CREATE POLICY "Users can delete own notifications"
+   775→  ON notifications FOR DELETE
+   776→  TO authenticated
+   777→  USING (user_id = auth.uid());
+   778→
+   779→-- System can insert notifications (service role bypasses RLS)
+   780→-- No INSERT policy for authenticated users; notifications are created
+   781→-- server-side via the service_role key.
+   782→
+   783→-- ===========================================================================
+   784→-- AUDIT LOG RLS POLICIES
+   785→-- ===========================================================================
+   786→
+   787→-- Super admins can read all audit logs
+   788→CREATE POLICY "Super admins can read audit_log"
+   789→  ON audit_log FOR SELECT
+   790→  TO authenticated
+   791→  USING (get_user_role() = 'super_admin');
+   792→
+   793→-- School admins can read audit logs for their school
+   794→CREATE POLICY "School admins can read school audit_log"
+   795→  ON audit_log FOR SELECT
+   796→  TO authenticated
+   797→  USING (
+   798→    get_user_role() = 'school_admin'
+   799→    AND user_id IN (
+   800→      SELECT id FROM users
+   801→      WHERE school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   802→    )
+   803→  );
+   804→
+   805→-- Audit logs are insert-only via service_role; no INSERT policy for authenticated users.
+   806→-- Audit logs are immutable; no UPDATE or DELETE policies.
+   807→
+   808→COMMIT;
+   809→
+   810→-- ============================================================================
+   811→-- END OF SCHEMA
+   812→-- ============================================================================
+   813→

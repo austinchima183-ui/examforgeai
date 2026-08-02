@@ -1,0 +1,771 @@
+     1→     1→# ExamForge AI — Environment Configuration Guide
+     2→     2→
+     3→     3→> **Version:** 1.0  
+     4→     4→> **Last Updated:** 2025-03-01  
+     5→     5→> **Owner:** Platform Engineering Team  
+     6→     6→> **Review Cycle:** Quarterly (aligned with access reviews)
+     7→     7→
+     8→     8→---
+     9→     9→
+    10→    10→## Table of Contents
+    11→    11→
+    12→    12→1. [All Environment Variables and Their Purpose](#1-all-environment-variables-and-their-purpose)
+    13→    13→2. [Per-Environment Configuration Differences](#2-per-environment-configuration-differences)
+    14→    14→3. [Secret Management](#3-secret-management)
+    15→    15→4. [Environment Provisioning Steps](#4-environment-provisioning-steps)
+    16→    16→5. [Configuration Validation Checklist](#5-configuration-validation-checklist)
+    17→    17→
+    18→    18→---
+    19→    19→
+    20→    20→## 1. All Environment Variables and Their Purpose
+    21→    21→
+    22→    22→### 1.1 Tier 1: Critical Secrets
+    23→    23→
+    24→    24→These variables contain sensitive values that must never be committed to source code or logged.
+    25→    25→
+    26→    26→| Variable | Purpose | Example Value | Used By |
+    27→    27→|----------|---------|---------------|---------|
+    28→    28→| `SUPABASE_URL` | Supabase project URL (environment-specific, not a secret per se) | `https://abc123.supabase.co` | Flutter app, Edge Functions, deploy scripts |
+    29→    29→| `SUPABASE_ANON_KEY` | Public anonymous key (safe in client code; rotates yearly) | `eyJhbGciOiJIUzI1NiIs...` | Flutter app (`SupabaseConfig.initialize()`) |
+    30→    30→| `SUPABASE_SERVICE_KEY` | Service role key — **CRITICAL: server-side only, never in client** | `eyJhbGciOiJIUzI1NiIs...` | Edge Functions, deploy scripts, monitoring |
+    31→    31→| `SUPABASE_SERVICE_ROLE_KEY` | Alias for `SUPABASE_SERVICE_KEY` in Edge Functions | Same as above | Edge Functions (`Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')`) |
+    32→    32→| `FLUTTERWAVE_PUBLIC_KEY` | Client-side Flutterwave key (safe in Flutter app) | `FLWPUBK_TEST-...` | Flutter app (payment widget) |
+    33→    33→| `FLUTTERWAVE_SECRET_KEY` | Server-side Flutterwave key — **CRITICAL: Edge Functions only** | `FLWSECK_TEST-...` | Edge Functions (`flutterwave-webhook`, `process-refund`, `health-check`) |
+    34→    34→| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | Webhook verification hash — **CRITICAL: Edge Functions only** | `a1b2c3d4e5f6...` | `flutterwave-webhook` Edge Function |
+    35→    35→| `FCM_SERVER_KEY` | Firebase Cloud Messaging server key (server-side only) | `AAAAxxxx...` | Push notification service |
+    36→    36→| `PRODUCTION_DATABASE_URL` | PostgreSQL connection string for production | `postgresql://examforge_app:pass@prod-db.examforge.ai:5432/examforge_production` | Deploy scripts, backup scripts |
+    37→    37→| `STAGING_DATABASE_URL` | PostgreSQL connection string for staging | `postgresql://examforge_app:pass@staging-db.examforge.ai:5432/examforge_staging` | Deploy scripts, backup scripts |
+    38→    38→| `DATABASE_URL` | Active environment DB URL (set by deploy script at runtime) | Same as production or staging URL | Runtime — set by `deploy.sh` based on target |
+    39→    39→| `PRODUCTION_HOST` | Production server hostname | `prod-db.examforge.ai` | Deploy scripts (SSH target) |
+    40→    40→| `PRODUCTION_USER` | Production SSH deploy user | `deploy` | Deploy scripts (SSH user) |
+    41→    41→| `STAGING_HOST` | Staging server hostname | `staging-db.examforge.ai` | Deploy scripts (SSH target) |
+    42→    42→| `STAGING_USER` | Staging SSH deploy user | `deploy` | Deploy scripts (SSH user) |
+    43→    43→| `ENCRYPTION_MASTER_KEY` | Master key for key derivation (future use) | 256-bit hex string | Local encryption service |
+    44→    44→| `GPG_RECIPIENT` | GPG key ID for backup encryption | `admin@examforge.ai` | Backup scripts |
+    45→    45→| `AWS_ACCESS_KEY_ID` | S3 access key for backups | `AKIAIOSFODNN7EXAMPLE` | Backup scripts (S3 upload) |
+    46→    46→| `AWS_SECRET_ACCESS_KEY` | S3 secret key for backups | `wJalrXUtnFEMI/K7MDENG/...` | Backup scripts (S3 upload) |
+    47→    47→| `SENTRY_DSN` | Sentry error tracking DSN | `https://key@sentry.io/project` | Application error reporting |
+    48→    48→| `GRAFANA_API_KEY` | Grafana API key (if self-hosted) | `glsa_xxxxxxxx...` | Monitoring dashboards |
+    49→    49→
+    50→    50→### 1.2 Tier 2: Configuration (Environment-Specific, Not Secrets)
+    51→    51→
+    52→    52→| Variable | Purpose | Default | Used By |
+    53→    53→|----------|---------|---------|---------|
+    54→    54→| `ENVIRONMENT` | Current environment identifier | `development` | All services — controls feature flags, timeouts, CORS origins |
+    55→    55→| `APP_URL` | Public-facing application URL | `http://localhost:3000` | CORS, health checks, deep links |
+    56→    56→| `API_URL` | API base URL | `http://localhost:3001` | Flutter app API calls |
+    57→    57→| `DB_HOST` | Database host | `localhost` | Backup scripts, direct DB connections |
+    58→    58→| `DB_PORT` | Database port | `5432` | Backup scripts, direct DB connections |
+    59→    59→| `DB_NAME` | Database name | `examforge_dev` | Backup scripts |
+    60→    60→| `DB_USER` | Database user (least-privilege application user) | `postgres` | Backup scripts |
+    61→    61→| `DB_PASSWORD` | Database password (Tier 1 when production) | — | Backup scripts |
+    62→    62→| `DB_POOL_MIN` | Connection pool minimum | `2` | Database pool manager |
+    63→    63→| `DB_POOL_MAX` | Connection pool maximum | `20` (prod: `50`) | Database pool manager |
+    64→    64→| `DEPLOY_PATH` | Remote deployment directory | `/var/www/examforge-dev` | Deploy scripts |
+    65→    65→| `DEPLOY_STRATEGY` | Deployment strategy | `standard` | Deploy scripts (`standard` or `blue-green`) |
+    66→    66→| `BACKUP_ENABLED` | Whether to run pre-deploy backups | `false` (dev) / `true` (staging/prod) | Deploy scripts |
+    67→    67→| `ROLLBACK_ENABLED` | Whether to enable automatic rollback | `true` | Deploy scripts |
+    68→    68→| `HEALTH_CHECK_URL` | Health check endpoint URL | `${APP_URL}/health` | Deploy scripts |
+    69→    69→| `SLOW_QUERY_THRESHOLD_MS` | Slow query threshold in milliseconds | `500` (prod: `300`) | Monitoring |
+    70→    70→| `HEALTH_CHECK_INTERVAL_SEC` | Health check interval in seconds | `300` | Monitoring |
+    71→    71→| `LOG_LEVEL` | Logging verbosity | `info` | Application logger |
+    72→    72→| `AWS_REGION` | AWS region for S3 backups | `af-south-1` | Backup scripts |
+    73→    73→| `AWS_ENDPOINT` | Custom S3 endpoint (for S3-compatible storage) | — (use default AWS) | Backup scripts |
+    74→    74→| `S3_BUCKET` | S3 bucket name for backups | `examforge-backups-prod` | Backup scripts |
+    75→    75→| `DEPLOY_HOST` | Resolved deployment host (set by deploy script) | Same as `PRODUCTION_HOST` or `STAGING_HOST` | Deploy scripts |
+    76→    76→| `DEPLOY_USER` | Resolved deployment user (set by deploy script) | Same as `PRODUCTION_USER` or `STAGING_USER` | Deploy scripts |
+    77→    77→
+    78→    78→### 1.3 Compile-Time Variables (Flutter --dart-define)
+    79→    79→
+    80→    80→In release builds, environment variables are passed via `--dart-define` flags since the `.env` file is not available:
+    81→    81→
+    82→    82→```bash
+    83→    83→flutter build web --release \
+    84→    84→  --dart-define=SUPABASE_URL=https://abc123.supabase.co \
+    85→    85→  --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs... \
+    86→    86→  --dart-define=SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIs... \
+    87→    87→  --dart-define=FCM_SERVER_KEY=AAAAxxxx... \
+    88→    88→  --dart-define=FLUTTERWAVE_PUBLIC_KEY=FLWPUBK_TEST-... \
+    89→    89→  --dart-define=FLUTTERWAVE_SECRET_KEY=FLWSECK_TEST-... \
+    90→    90→  --dart-define=ENVIRONMENT=production
+    91→    91→```
+    92→    92→
+    93→    93→These are read in `EnvConfig.initialize()` via `String.fromEnvironment()` when the `.env` file is unavailable (release builds).
+    94→    94→
+    95→    95→### 1.4 Edge Function Environment Variables
+    96→    96→
+    97→    97→Supabase Edge Functions access environment variables via `Deno.env.get()`:
+    98→    98→
+    99→    99→| Variable | Function | Access Pattern |
+   100→   100→|----------|----------|---------------|
+   101→   101→| `SUPABASE_URL` | All Edge Functions | `Deno.env.get('SUPABASE_URL')` |
+   102→   102→| `SUPABASE_SERVICE_ROLE_KEY` | All Edge Functions | `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` |
+   103→   103→| `FLUTTERWAVE_SECRET_KEY` | `flutterwave-webhook`, `process-refund`, `health-check` | `Deno.env.get('FLUTTERWAVE_SECRET_KEY')` |
+   104→   104→| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | `flutterwave-webhook` | `Deno.env.get('FLUTTERWAVE_WEBHOOK_SECRET_HASH')` |
+   105→   105→| `ENVIRONMENT` | `health-check` | `Deno.env.get('ENVIRONMENT')` |
+   106→   106→| `DEPLOY_VERSION` | `health-check` | `Deno.env.get('DEPLOY_VERSION')` |
+   107→   107→
+   108→   108→---
+   109→   109→
+   110→   110→## 2. Per-Environment Configuration Differences
+   111→   111→
+   112→   112→### 2.1 Development
+   113→   113→
+   114→   114→```bash
+   115→   115→ENVIRONMENT=development
+   116→   116→APP_URL=http://localhost:3000
+   117→   117→API_URL=http://localhost:3001
+   118→   118→SUPABASE_URL=http://localhost:54321
+   119→   119→SUPABASE_SERVICE_KEY=dev-key
+   120→   120→DB_HOST=localhost
+   121→   121→DB_PORT=5432
+   122→   122→DB_NAME=examforge_dev
+   123→   123→DB_USER=postgres
+   124→   124→BACKUP_ENABLED=false
+   125→   125→ROLLBACK_ENABLED=true
+   126→   126→DEPLOY_PATH=/var/www/examforge-dev
+   127→   127→HEALTH_CHECK_URL=http://localhost:3000/health
+   128→   128→SLOW_QUERY_THRESHOLD_MS=500
+   129→   129→DB_POOL_MAX=20
+   130→   130→LOG_LEVEL=debug
+   131→   131→```
+   132→   132→
+   133→   133→**Feature flags (development):**
+   134→   134→
+   135→   135→| Flag | Enabled |
+   136→   136→|------|---------|
+   137→   137→| `ai_question_generation` | Yes |
+   138→   138→| `ai_exam_hints` | Yes |
+   139→   139→| `offline_mode` | Yes |
+   140→   140→| `dark_mode` | Yes |
+   141→   141→| `push_notifications` | Yes |
+   142→   142→| `payment_gateway` | Yes |
+   143→   143→| `biometric_login` | Yes |
+   144→   144→| `multi_school` | Yes |
+   145→   145→| `advanced_analytics` | Yes |
+   146→   146→| `export_pdf` | Yes |
+   147→   147→
+   148→   148→**Timeouts:**
+   149→   149→- Connect: 30 seconds
+   150→   150→- Receive: 30 seconds
+   151→   151→- Send: 30 seconds
+   152→   152→
+   153→   153→**CORS origins:** `http://localhost:3000`, `http://localhost:5173`
+   154→   154→
+   155→   155→### 2.2 Staging
+   156→   156→
+   157→   157→```bash
+   158→   158→ENVIRONMENT=staging
+   159→   159→APP_URL=https://staging.examforge.ai
+   160→   160→API_URL=https://staging-api.examforge.ai
+   161→   161→SUPABASE_URL=${STAGING_SUPABASE_URL}
+   162→   162→SUPABASE_SERVICE_KEY=${STAGING_SUPABASE_SERVICE_KEY}
+   163→   163→DB_HOST=staging-db.examforge.ai
+   164→   164→DB_PORT=5432
+   165→   165→DB_NAME=examforge_staging
+   166→   166→DB_USER=examforge_app
+   167→   167→BACKUP_ENABLED=true
+   168→   168→ROLLBACK_ENABLED=true
+   169→   169→DEPLOY_PATH=/var/www/examforge-staging
+   170→   170→HEALTH_CHECK_URL=https://staging.examforge.ai/health
+   171→   171→SLOW_QUERY_THRESHOLD_MS=500
+   172→   172→DB_POOL_MAX=20
+   173→   173→LOG_LEVEL=info
+   174→   174→```
+   175→   175→
+   176→   176→**Feature flags (staging):**
+   177→   177→
+   178→   178→| Flag | Enabled |
+   179→   179→|------|---------|
+   180→   180→| `ai_question_generation` | Yes |
+   181→   181→| `ai_exam_hints` | Yes |
+   182→   182→| `offline_mode` | Yes |
+   183→   183→| `dark_mode` | Yes |
+   184→   184→| `push_notifications` | Yes |
+   185→   185→| `payment_gateway` | Yes |
+   186→   186→| `biometric_login` | Yes |
+   187→   187→| `multi_school` | Yes |
+   188→   188→| `advanced_analytics` | Yes |
+   189→   189→| `export_pdf` | Yes |
+   190→   190→
+   191→   191→**Timeouts:**
+   192→   192→- Connect: 20 seconds
+   193→   193→- Receive: 20 seconds
+   194→   194→- Send: 20 seconds
+   195→   195→
+   196→   196→**CORS origins:** `https://staging.examforge.ai`, `https://staging-app.examforge.ai`
+   197→   197→
+   198→   198→### 2.3 Production
+   199→   199→
+   200→   200→```bash
+   201→   201→ENVIRONMENT=production
+   202→   202→APP_URL=https://examforge.ai
+   203→   203→API_URL=https://api.examforge.ai
+   204→   204→SUPABASE_URL=${PRODUCTION_SUPABASE_URL}
+   205→   205→SUPABASE_SERVICE_KEY=${PRODUCTION_SUPABASE_SERVICE_KEY}
+   206→   206→DB_HOST=prod-db.examforge.ai
+   207→   207→DB_PORT=5432
+   208→   208→DB_NAME=examforge_production
+   209→   209→DB_USER=examforge_app
+   210→   210→BACKUP_ENABLED=true
+   211→   211→ROLLBACK_ENABLED=true
+   212→   212→DEPLOY_PATH=/var/www/examforge
+   213→   213→HEALTH_CHECK_URL=https://examforge.ai/health
+   214→   214→SLOW_QUERY_THRESHOLD_MS=300
+   215→   215→DB_POOL_MAX=50
+   216→   216→LOG_LEVEL=warning
+   217→   217→```
+   218→   218→
+   219→   219→**Feature flags (production):**
+   220→   220→
+   221→   221→| Flag | Enabled |
+   222→   222→|------|---------|
+   223→   223→| `ai_question_generation` | Yes |
+   224→   224→| `ai_exam_hints` | No |
+   225→   225→| `offline_mode` | No |
+   226→   226→| `dark_mode` | Yes |
+   227→   227→| `push_notifications` | Yes |
+   228→   228→| `payment_gateway` | Yes |
+   229→   229→| `biometric_login` | No |
+   230→   230→| `multi_school` | No |
+   231→   231→| `advanced_analytics` | No |
+   232→   232→| `export_pdf` | Yes |
+   233→   233→
+   234→   234→**Timeouts:**
+   235→   235→- Connect: 15 seconds
+   236→   236→- Receive: 15 seconds
+   237→   237→- Send: 15 seconds
+   238→   238→
+   239→   239→**CORS origins:** `https://examforge.ai`, `https://www.examforge.ai`, `https://app.examforge.ai`, `https://admin.examforge.ai`
+   240→   240→
+   241→   241→### 2.4 Configuration Comparison Matrix
+   242→   242→
+   243→   243→| Parameter | Development | Staging | Production |
+   244→   244→|-----------|------------|---------|------------|
+   245→   245→| App URL | `localhost:3000` | `staging.examforge.ai` | `examforge.ai` |
+   246→   246→| Database | `localhost:5432/examforge_dev` | `staging-db:5432/examforge_staging` | `prod-db:5432/examforge_production` |
+   247→   247→| Backups | Disabled | Enabled (encrypted) | Enabled (encrypted + DR replication) |
+   248→   248→| Connection pool max | 20 | 20 | 50 |
+   249→   249→| Slow query threshold | 500ms | 500ms | 300ms |
+   250→   250→| Verbose logging | Yes | Yes | No |
+   251→   251→| Connect timeout | 30s | 20s | 15s |
+   252→   252→| Experimental features | All enabled | All enabled | Production-only |
+   253→   253→| CORS origins | localhost | staging subdomains | production domains |
+   254→   254→
+   255→   255→---
+   256→   256→
+   257→   257→## 3. Secret Management
+   258→   258→
+   259→   259→### 3.1 Secret Storage Architecture
+   260→   260→
+   261→   261→```
+   262→   262→┌─────────────────────────────────────────────────────────────┐
+   263→   263→│                     SECRET SOURCES                          │
+   264→   264→│                                                             │
+   265→   265→│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+   266→   266→│  │   GitHub     │  │   Supabase   │  │    AWS       │     │
+   267→   267→│  │   Secrets    │  │   Vault      │  │    IAM       │     │
+   268→   268→│  │              │  │              │  │              │     │
+   269→   269→│  │ • CI/CD vars │  │ • Edge Fn    │  │ • S3 access  │     │
+   270→   270→│  │ • Deploy     │  │   secrets    │  │ • Backup     │     │
+   271→   271→│  │   scripts    │  │ • App        │  │   uploads    │     │
+   272→   272→│  │ • Build      │  │   secrets    │  │              │     │
+   273→   273→│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
+   274→   274→│         │                  │                  │             │
+   275→   275→│         └──────────────────┼──────────────────┘             │
+   276→   276→│                            │                                │
+   277→   277→│                            ▼                                │
+   278→   278→│                    ┌──────────────┐                         │
+   279→   279→│                    │  Application │                         │
+   280→   280→│                    │  Runtime     │                         │
+   281→   281→│                    └──────────────┘                         │
+   282→   282→└─────────────────────────────────────────────────────────────┘
+   283→   283→```
+   284→   284→
+   285→   285→### 3.2 GitHub Secrets
+   286→   286→
+   287→   287→GitHub Secrets store variables needed by CI/CD pipelines and the deploy script.
+   288→   288→
+   289→   289→**Setting a secret:**
+   290→   290→```bash
+   291→   291→# Using the GitHub CLI
+   292→   292→gh secret set SUPABASE_SERVICE_KEY --body "<value>" --repo examforge-ai/examforge-ai
+   293→   293→
+   294→   294→# Setting for a specific environment
+   295→   295→gh secret set PRODUCTION_DATABASE_URL --body "<value>" --repo examforge-ai/examforge-ai --env production
+   296→   296→```
+   297→   297→
+   298→   298→**Secrets stored in GitHub:**
+   299→   299→
+   300→   300→| Secret | Environment | Purpose |
+   301→   301→|--------|------------|---------|
+   302→   302→| `SUPABASE_SERVICE_KEY` | All | Service role key for Edge Functions |
+   303→   303→| `PRODUCTION_DATABASE_URL` | Production | Database connection string |
+   304→   304→| `STAGING_DATABASE_URL` | Staging | Database connection string |
+   305→   305→| `PRODUCTION_HOST` | Production | SSH deployment target |
+   306→   306→| `PRODUCTION_USER` | Production | SSH deployment user |
+   307→   307→| `STAGING_HOST` | Staging | SSH deployment target |
+   308→   308→| `STAGING_USER` | Staging | SSH deployment user |
+   309→   309→| `PRODUCTION_SUPABASE_URL` | Production | Supabase project URL |
+   310→   310→| `PRODUCTION_SUPABASE_SERVICE_KEY` | Production | Supabase service key (production) |
+   311→   311→| `STAGING_SUPABASE_URL` | Staging | Staging Supabase URL |
+   312→   312→| `STAGING_SUPABASE_SERVICE_KEY` | Staging | Staging Supabase service key |
+   313→   313→| `FLUTTERWAVE_SECRET_KEY` | All | Flutterwave API key |
+   314→   314→| `FCM_SERVER_KEY` | All | Firebase Cloud Messaging key |
+   315→   315→| `AWS_ACCESS_KEY_ID` | All | S3 backup access |
+   316→   316→| `AWS_SECRET_ACCESS_KEY` | All | S3 backup secret |
+   317→   317→
+   318→   318→### 3.3 Supabase Vault
+   319→   319→
+   320→   320→Supabase Vault stores secrets needed by Edge Functions at runtime.
+   321→   321→
+   322→   322→**Setting a secret in Supabase Vault:**
+   323→   323→```bash
+   324→   324→# Via Supabase CLI
+   325→   325→supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs... --project-id examforge-production
+   326→   326→supabase secrets set FLUTTERWAVE_SECRET_KEY=FLWSECK_TEST-... --project-id examforge-production
+   327→   327→supabase secrets set FLUTTERWAVE_WEBHOOK_SECRET_HASH=a1b2c3d4e5f6... --project-id examforge-production
+   328→   328→supabase secrets set ENVIRONMENT=production --project-id examforge-production
+   329→   329→
+   330→   330→# Listing secrets
+   331→   331→supabase secrets list --project-id examforge-production
+   332→   332→```
+   333→   333→
+   334→   334→**Secrets stored in Supabase Vault (per environment):**
+   335→   335→
+   336→   336→| Secret | Production | Staging | Development |
+   337→   337→|--------|-----------|---------|-------------|
+   338→   338→| `SUPABASE_URL` | Yes | Yes | No (local) |
+   339→   339→| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Yes | No (local) |
+   340→   340→| `FLUTTERWAVE_SECRET_KEY` | Yes | Yes (test key) | No |
+   341→   341→| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | Yes | Yes (test hash) | No |
+   342→   342→| `ENVIRONMENT` | `production` | `staging` | — |
+   343→   343→| `DEPLOY_VERSION` | Updated per deploy | Updated per deploy | — |
+   344→   344→
+   345→   345→### 3.4 Local Secret Management (Development)
+   346→   346→
+   347→   347→For local development, secrets are stored in the `.env` file:
+   348→   348→
+   349→   349→```bash
+   350→   350→# Copy the template
+   351→   351→cp .env.example .env
+   352→   352→
+   353→   353→# Fill in development values
+   354→   354→# .env is listed in .gitignore and will NEVER be committed
+   355→   355→```
+   356→   356→
+   357→   357→**Fallback behavior (from `EnvConfig`):** In release builds without a `.env` file, the app falls back to `--dart-define` compile-time constants. In debug builds, safe placeholder values are used so the app can still launch.
+   358→   358→
+   359→   359→### 3.5 Secret Access Audit Logging
+   360→   360→
+   361→   361→All secret access is logged with:
+   362→   362→
+   363→   363→| Field | Description |
+   364→   364→|-------|-------------|
+   365→   365→| Timestamp (UTC) | When the secret was accessed |
+   366→   366→| User/service account | Who accessed the secret |
+   367→   367→| Secret name | The name of the secret (NOT the value) |
+   368→   368→| Action | `read`, `rotate`, or `delete` |
+   369→   369→| Source IP | Where the access originated |
+   370→   370→| Correlation ID | For tracing across services |
+   371→   371→
+   372→   372→**Audit log locations:**
+   373→   373→
+   374→   374→| System | Audit Location |
+   375→   375→|--------|---------------|
+   376→   376→| GitHub Actions | GitHub audit log (Settings → Audit log) |
+   377→   377→| Supabase | `admin_access_log` table + Supabase Dashboard audit |
+   378→   378→| AWS | CloudTrail |
+   379→   379→
+   380→   380→### 3.6 Secret Rotation Schedule
+   381→   381→
+   382→   382→| Secret | Rotation Period | Process | Owner |
+   383→   383→|--------|----------------|---------|-------|
+   384→   384→| `SUPABASE_SERVICE_KEY` | 90 days | Supabase Dashboard → Settings → API → Regenerate | Platform engineering |
+   385→   385→| `FLUTTERWAVE_SECRET_KEY` | 90 days | Flutterwave Dashboard → Settings → API Keys | Finance + Engineering |
+   386→   386→| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | 90 days | Flutterwave Dashboard → Settings → Webhooks | Engineering |
+   387→   387→| `FCM_SERVER_KEY` | 180 days | Firebase Console → Cloud Messaging | Engineering |
+   388→   388→| `DATABASE_URL` (password) | 90 days | SQL `ALTER ROLE` + update secrets | Platform engineering |
+   389→   389→| `GPG_RECIPIENT` key | 365 days | Generate new key, re-encrypt | Security team |
+   390→   390→| `AWS credentials` | 90 days | AWS IAM → Rotate credentials | Infrastructure team |
+   391→   391→| `ENCRYPTION_MASTER_KEY` | On compromise only | Key rotation procedure | Security team |
+   392→   392→
+   393→   393→---
+   394→   394→
+   395→   395→## 4. Environment Provisioning Steps
+   396→   396→
+   397→   397→### 4.1 Provisioning a New Development Environment
+   398→   398→
+   399→   399→```bash
+   400→   400→# 1. Clone the repository
+   401→   401→git clone https://github.com/examforge-ai/examforge-ai.git
+   402→   402→cd examforge-ai
+   403→   403→
+   404→   404→# 2. Install Flutter SDK (3.22+)
+   405→   405→# Follow: https://docs.flutter.dev/get-started/install
+   406→   406→
+   407→   407→# 3. Install dependencies
+   408→   408→flutter pub get
+   409→   409→
+   410→   410→# 4. Copy environment template
+   411→   411→cp .env.example .env
+   412→   412→# Edit .env with your Supabase project credentials
+   413→   413→
+   414→   414→# 5. Start local Supabase (optional, for full local development)
+   415→   415→supabase init
+   416→   416→supabase start
+   417→   417→# Note the local credentials printed by supabase start
+   418→   418→
+   419→   419→# 6. Apply migrations
+   420→   420→supabase db push
+   421→   421→
+   422→   422→# 7. Run the app
+   423→   423→flutter run -d chrome
+   424→   424→```
+   425→   425→
+   426→   426→### 4.2 Provisioning a New Staging Environment
+   427→   427→
+   428→   428→```bash
+   429→   429→# 1. Create a new Supabase project
+   430→   430→# Via Supabase Dashboard or CLI:
+   431→   431→supabase projects create examforge-staging-new --region af-south-1
+   432→   432→
+   433→   433→# 2. Note the project URL and keys
+   434→   434→# From: Supabase Dashboard → Settings → API
+   435→   435→
+   436→   436→# 3. Apply all migrations
+   437→   437→for migration in supabase/migrations/*.sql; do
+   438→   438→  echo "Applying: $(basename $migration)"
+   439→   439→  psql "${STAGING_DATABASE_URL}" -f "$migration"
+   440→   440→done
+   441→   441→
+   442→   442→# 4. Set up Supabase Vault secrets
+   443→   443→supabase secrets set \
+   444→   444→  SUPABASE_SERVICE_ROLE_KEY=<key> \
+   445→   445→  FLUTTERWAVE_SECRET_KEY=<test-key> \
+   446→   446→  FLUTTERWAVE_WEBHOOK_SECRET_HASH=<test-hash> \
+   447→   447→  ENVIRONMENT=staging \
+   448→   448→  --project-id examforge-staging-new
+   449→   449→
+   450→   450→# 5. Deploy Edge Functions
+   451→   451→supabase functions deploy health-check --project-id examforge-staging-new
+   452→   452→supabase functions deploy flutterwave-webhook --project-id examforge-staging-new
+   453→   453→supabase functions deploy process-refund --project-id examforge-staging-new
+   454→   454→supabase functions deploy marketplace-download --project-id examforge-staging-new
+   455→   455→
+   456→   456→# 6. Configure Flutterwave webhook
+   457→   457→# Flutterwave Dashboard → Settings → Webhooks
+   458→   458→# URL: https://staging.examforge.ai/functions/v1/flutterwave-webhook
+   459→   459→# Secret hash: matches FLUTTERWAVE_WEBHOOK_SECRET_HASH
+   460→   460→
+   461→   461→# 7. Update GitHub Secrets
+   462→   462→gh secret set STAGING_DATABASE_URL --body "<new-url>" --repo examforge-ai/examforge-ai
+   463→   463→gh secret set STAGING_HOST --body "<new-host>" --repo examforge-ai/examforge-ai
+   464→   464→gh secret set STAGING_SUPABASE_URL --body "<new-url>" --repo examforge-ai/examforge-ai
+   465→   465→gh secret set STAGING_SUPABASE_SERVICE_KEY --body "<new-key>" --repo examforge-ai/examforge-ai
+   466→   466→
+   467→   467→# 8. Create storage buckets
+   468→   468→# Via Supabase Dashboard → Storage:
+   469→   469→# - exam-files (private, 50MB limit)
+   470→   470→# - profile-images (public, 5MB limit)
+   471→   471→# - marketplace-files (private, 100MB limit)
+   472→   472→# - question-media (private, 20MB limit)
+   473→   473→
+   474→   474→# 9. Build and deploy the Flutter web app
+   475→   475→flutter build web --release \
+   476→   476→  --dart-define=SUPABASE_URL=<new-url> \
+   477→   477→  --dart-define=SUPABASE_ANON_KEY=<new-anon-key> \
+   478→   478→  --dart-define=ENVIRONMENT=staging
+   479→   479→
+   480→   480→# 10. Verify the deployment
+   481→   481→curl -s https://staging.examforge.ai/functions/v1/health-check | jq .
+   482→   482→```
+   483→   483→
+   484→   484→### 4.3 Provisioning a New Production Environment
+   485→   485→
+   486→   486→> **⚠️ Production provisioning requires CTO approval and should follow the full deployment checklist in `lib/config/deployment_checklist.dart`.**
+   487→   487→
+   488→   488→```bash
+   489→   489→# 1. Create the Supabase production project
+   490→   490→supabase projects create examforge-production --region af-south-1
+   491→   491→
+   492→   492→# 2. Apply all migrations (IN ORDER)
+   493→   493→# Use the deploy script for this:
+   494→   494→./scripts/deploy.sh production --migrate-only
+   495→   495→
+   496→   496→# 3. Set up production secrets in Supabase Vault
+   497→   497→supabase secrets set \
+   498→   498→  SUPABASE_SERVICE_ROLE_KEY=<production-key> \
+   499→   499→  FLUTTERWAVE_SECRET_KEY=<production-key> \
+   500→   500→  FLUTTERWAVE_WEBHOOK_SECRET_HASH=<production-hash> \
+   501→   501→  ENVIRONMENT=production \
+   502→   502→  --project-id examforge-production
+   503→   503→
+   504→   504→# 4. Set up production secrets in GitHub
+   505→   505→gh secret set PRODUCTION_DATABASE_URL --body "<url>" --repo examforge-ai/examforge-ai
+   506→   506→gh secret set PRODUCTION_HOST --body "<host>" --repo examforge-ai/examforge-ai
+   507→   507→gh secret set PRODUCTION_USER --body "deploy" --repo examforge-ai/examforge-ai
+   508→   508→gh secret set PRODUCTION_SUPABASE_URL --body "<url>" --repo examforge-ai/examforge-ai
+   509→   509→gh secret set PRODUCTION_SUPABASE_SERVICE_KEY --body "<key>" --repo examforge-ai/examforge-ai
+   510→   510→gh secret set SUPABASE_SERVICE_KEY --body "<key>" --repo examforge-ai/examforge-ai
+   511→   511→gh secret set FLUTTERWAVE_SECRET_KEY --body "<key>" --repo examforge-ai/examforge-ai
+   512→   512→gh secret set FCM_SERVER_KEY --body "<key>" --repo examforge-ai/examforge-ai
+   513→   513→gh secret set AWS_ACCESS_KEY_ID --body "<key>" --repo examforge-ai/examforge-ai
+   514→   514→gh secret set AWS_SECRET_ACCESS_KEY --body "<key>" --repo examforge-ai/examforge-ai
+   515→   515→
+   516→   516→# 5. Provision infrastructure with Terraform
+   517→   517→cd infra/terraform
+   518→   518→terraform init
+   519→   519→terraform plan -var-file=terraform.tfvars -out=tfplan
+   520→   520→terraform apply tfplan
+   521→   521→
+   522→   522→# 6. Deploy Edge Functions
+   523→   523→supabase functions deploy health-check --project-id examforge-production
+   524→   524→supabase functions deploy flutterwave-webhook --project-id examforge-production
+   525→   525→supabase functions deploy process-refund --project-id examforge-production
+   526→   526→supabase functions deploy marketplace-download --project-id examforge-production
+   527→   527→
+   528→   528→# 7. Configure production Flutterwave webhook
+   529→   529→# Use production Flutterwave account (NOT test mode)
+   530→   530→# Webhook URL: https://examforge.ai/functions/v1/flutterwave-webhook
+   531→   531→
+   532→   532→# 8. Create S3 buckets
+   533→   533→aws s3 mb s3://examforge-backups-prod --region af-south-1
+   534→   534→aws s3 mb s3://examforge-backups-dr --region eu-west-1
+   535→   535→
+   536→   536→# 9. Set up backup cron jobs
+   537→   537→# Add the cron entries from the backup-restore-guide.md to the production server
+   538→   538→
+   539→   539→# 10. Build and deploy
+   540→   540→flutter build web --release \
+   541→   541→  --dart-define=SUPABASE_URL=<prod-url> \
+   542→   542→  --dart-define=SUPABASE_ANON_KEY=<prod-anon-key> \
+   543→   543→  --dart-define=SUPABASE_SERVICE_KEY=<prod-service-key> \
+   544→   544→  --dart-define=FCM_SERVER_KEY=<fcm-key> \
+   545→   545→  --dart-define=FLUTTERWAVE_PUBLIC_KEY=<flw-public-key> \
+   546→   546→  --dart-define=FLUTTERWAVE_SECRET_KEY=<flw-secret-key> \
+   547→   547→  --dart-define=ENVIRONMENT=production
+   548→   548→
+   549→   549→./scripts/deploy.sh production --blue-green
+   550→   550→
+   551→   551→# 11. Run the full deployment validation checklist
+   552→   552→# See: docs/operations/deployment-guide.md Section 7
+   553→   553→
+   554→   554→# 12. Verify health
+   555→   555→curl -s https://examforge.ai/functions/v1/health-check | jq .
+   556→   556→```
+   557→   557→
+   558→   558→### 4.4 Decommissioning an Environment
+   559→   559→
+   560→   560→```bash
+   561→   561→# 1. Take a final backup
+   562→   562→./scripts/backup_dr.sh backup <env> --full --encrypt --verify --upload
+   563→   563→
+   564→   564→# 2. Delete Supabase project
+   565→   565→# Via Supabase Dashboard → Settings → General → Delete Project
+   566→   566→# WARNING: This is irreversible
+   567→   567→
+   568→   568→# 3. Delete S3 buckets
+   569→   569→aws s3 rb s3://examforge-backups-<env> --force --region af-south-1
+   570→   570→
+   571→   571→# 4. Remove GitHub Secrets
+   572→   572→gh secret delete <SECRET_NAME> --repo examforge-ai/examforge-ai
+   573→   573→
+   574→   574→# 5. Remove SSH keys from the decommissioned server
+   575→   575→
+   576→   576→# 6. Update Terraform configuration and apply
+   577→   577→cd infra/terraform
+   578→   578→terraform plan -var-file=terraform.tfvars -destroy
+   579→   579→terraform apply -var-file=terraform.tfvars -destroy
+   580→   580→
+   581→   581→# 7. Document the decommissioning
+   582→   582→# Record: date, reason, final backup location, who approved
+   583→   583→```
+   584→   584→
+   585→   585→---
+   586→   586→
+   587→   587→## 5. Configuration Validation Checklist
+   588→   588→
+   589→   589→### 5.1 Pre-Deployment Configuration Checklist
+   590→   590→
+   591→   591→Run through this checklist before every production deployment:
+   592→   592→
+   593→   593→- [ ] **All required environment variables are set** — Verify in GitHub Secrets and Supabase Vault
+   594→   594→- [ ] **No secrets in source code** — Run `gitleaks detect --source .`
+   595→   595→- [ ] **`.env` file is in `.gitignore`** — Verify `.env` is listed
+   596→   596→- [ ] **Database URL is correct** — Verify connectivity: `psql "${PRODUCTION_DATABASE_URL}" -c "SELECT 1;"`
+   597→   597→- [ ] **Supabase URL and keys match the production project** — Verify in Supabase Dashboard
+   598→   598→- [ ] **Flutterwave keys are for production (not test)** — Verify in Flutterwave Dashboard
+   599→   599→- [ ] **CORS origins match the environment** — Check Edge Function CORS configuration
+   600→   600→- [ ] **Feature flags are set correctly for production** — Review `feature_flags` table
+   601→   601→- [ ] **Connection pool size is appropriate** — `DB_POOL_MAX=50` for production
+   602→   602→- [ ] **Timeouts are set for production** — 15s for all timeouts
+   603→   603→- [ ] **Slow query threshold is 300ms** — Verify `SLOW_QUERY_THRESHOLD_MS=300`
+   604→   604→- [ ] **Backup is enabled** — Verify `BACKUP_ENABLED=true`
+   605→   605→- [ ] **Logging level is appropriate** — `LOG_LEVEL=warning` in production
+   606→   606→- [ ] **Health check URL is correct** — Verify `curl -s https://examforge.ai/health | jq .`
+   607→   607→
+   608→   608→### 5.2 Post-Configuration Verification Script
+   609→   609→
+   610→   610→```bash
+   611→   611→#!/bin/bash
+   612→   612→# Verify production configuration
+   613→   613→set -euo pipefail
+   614→   614→
+   615→   615→echo "═══ ExamForge AI — Configuration Verification ═══"
+   616→   616→echo ""
+   617→   617→
+   618→   618→# Check environment variables are set
+   619→   619→for var in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY \
+   620→   620→           FLUTTERWAVE_PUBLIC_KEY FLUTTERWAVE_SECRET_KEY \
+   621→   621→           ENVIRONMENT; do
+   622→   622→  if [ -z "${!var:-}" ]; then
+   623→   623→    echo "❌ MISSING: $var"
+   624→   624→  else
+   625→   625→    echo "✅ SET: $var (length: ${#!var})"
+   626→   626→  fi
+   627→   627→done
+   628→   628→
+   629→   629→echo ""
+   630→   630→
+   631→   631→# Check database connectivity
+   632→   632→if psql "${DATABASE_URL:-}" -c "SELECT 1;" &>/dev/null; then
+   633→   633→  echo "✅ Database: reachable"
+   634→   634→else
+   635→   635→  echo "❌ Database: unreachable"
+   636→   636→fi
+   637→   637→
+   638→   638→# Check health endpoint
+   639→   639→HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${HEALTH_CHECK_URL:-http://localhost:3000/health}" 2>/dev/null || echo "000")
+   640→   640→if [ "${HTTP_CODE}" = "200" ]; then
+   641→   641→  echo "✅ Health check: 200 OK"
+   642→   642→elif [ "${HTTP_CODE}" = "503" ]; then
+   643→   643→  echo "⚠️  Health check: 503 Service Unavailable"
+   644→   644→else
+   645→   645→  echo "❌ Health check: HTTP ${HTTP_CODE}"
+   646→   646→fi
+   647→   647→
+   648→   648→# Check for secrets in source code
+   649→   649→if command -v gitleaks &>/dev/null; then
+   650→   650→  if gitleaks detect --source . --no-banner 2>/dev/null; then
+   651→   651→    echo "✅ No secrets in source code"
+   652→   652→  else
+   653→   653→    echo "❌ Secrets detected in source code!"
+   654→   654→  fi
+   655→   655→else
+   656→   656→  echo "⚠️  gitleaks not installed — skipping secret scan"
+   657→   657→fi
+   658→   658→
+   659→   659→echo ""
+   660→   660→echo "═══ Verification Complete ═══"
+   661→   661→```
+   662→   662→
+   663→   663→### 5.3 Configuration Drift Detection
+   664→   664→
+   665→   665→Run quarterly (aligned with access reviews) to detect configuration drift:
+   666→   666→
+   667→   667→```sql
+   668→   668→-- Check if RLS is disabled on any table (should be 0 rows)
+   669→   669→SELECT tablename FROM pg_tables
+   670→   670→WHERE schemaname = 'public' AND rowsecurity = false;
+   671→   671→
+   672→   672→-- Check if any feature flags have been changed from expected values
+   673→   673→SELECT name, is_enabled, rollout_percentage
+   674→   674→FROM feature_flags
+   675→   675→WHERE (name = 'ai_exam_hints' AND is_enabled = true)
+   676→   676→   OR (name = 'offline_mode' AND is_enabled = true)
+   677→   677→   OR (name = 'biometric_login' AND is_enabled = true)
+   678→   678→   OR (name = 'multi_school' AND is_enabled = true)
+   679→   679→   OR (name = 'advanced_analytics' AND is_enabled = true);
+   680→   680→-- All should return 0 rows in production
+   681→   681→
+   682→   682→-- Check for unauthorized database roles
+   683→   683→SELECT rolname FROM pg_roles
+   684→   684→WHERE rolname NOT IN (
+   685→   685→  'postgres', 'authenticated', 'anon', 'service_role',
+   686→   686→  'webhook_processor', 'refund_processor', 'monitoring_agent',
+   687→   687→  'backup_reader', 'analytics_reader',
+   688→   688→  'supabase_admin', 'supabase_auth_admin', 'supabase_storage_admin',
+   689→   689→  'pgbouncer', 'pg_read_all_data', 'pg_write_all_data',
+   690→   690→  -- Add other expected roles
+   691→   691→  'supabase_functions_admin', 'supabase_replication_admin'
+   692→   692→)
+   693→   693→AND rolcanlogin = false AND rolinherit = true;
+   694→   694→-- Any unexpected roles should be investigated
+   695→   695→```
+   696→   696→
+   697→   697→### 5.4 Environment-Specific Validation
+   698→   698→
+   699→   699→| Check | Development | Staging | Production |
+   700→   700→|-------|------------|---------|------------|
+   701→   701→| `ENVIRONMENT` variable | `development` | `staging` | `production` |
+   702→   702→| Flutterwave mode | Test | Test | **Live** |
+   703→   703→| Database has test data | Yes | Yes | **No test data** |
+   704→   704→| RLS enabled on all tables | Recommended | **Required** | **Required** |
+   705→   705→| Backups configured | No | Yes | **Yes + DR** |
+   706→   706→| Monitoring active | No | Yes | **Yes** |
+   707→   707→| Alerting active | No | Yes | **Yes** |
+   708→   708→| GPG encryption on backups | No | Yes | **Yes** |
+   709→   709→| CORS restricted to known domains | No | Yes | **Yes** |
+   710→   710→| Security headers enforced | No | Yes | **Yes** |
+   711→   711→
+   712→   712→---
+   713→   713→
+   714→   714→## Appendix A: Complete `.env.example`
+   715→   715→
+   716→   716→```bash
+   717→   717→# ──────────────────────────────────────────────────────────────
+   718→   718→# ExamForge AI — Environment Configuration Template
+   719→   719→# ──────────────────────────────────────────────────────────────
+   720→   720→# Copy this file to .env and fill in the values.
+   721→   721→#   cp .env.example .env
+   722→   722→#
+   723→   723→# NEVER commit the .env file to version control.
+   724→   724→# ──────────────────────────────────────────────────────────────
+   725→   725→
+   726→   726→# Supabase — Project URL and API keys from your Supabase dashboard
+   727→   727→# Dashboard → Settings → API
+   728→   728→SUPABASE_URL=https://<project-ref>.supabase.co
+   729→   729→SUPABASE_ANON_KEY=<your-anon-key>
+   730→   730→SUPABASE_SERVICE_KEY=<your-service-key>
+   731→   731→
+   732→   732→# Firebase Cloud Messaging — Server key for push notifications
+   733→   733→# Firebase Console → Project Settings → Cloud Messaging
+   734→   734→FCM_SERVER_KEY=<your-fcm-server-key>
+   735→   735→
+   736→   736→# Flutterwave — Payment gateway keys
+   737→   737→# Flutterwave Dashboard → Settings → API Keys
+   738→   738→FLUTTERWAVE_PUBLIC_KEY=<your-flutterwave-public-key>
+   739→   739→FLUTTERWAVE_SECRET_KEY=<your-flutterwave-secret-key>
+   740→   740→# Flutterwave Dashboard → Settings → Webhooks
+   741→   741→FLUTTERWAVE_WEBHOOK_SECRET_HASH=<your-flutterwave-webhook-secret-hash>
+   742→   742→
+   743→   743→# Application environment: development | staging | production
+   744→   744→ENVIRONMENT=development
+   745→   745→```
+   746→   746→
+   747→   747→## Appendix B: Feature Flags Reference
+   748→   748→
+   749→   749→| Flag | Description | Dev | Staging | Prod |
+   750→   750→|------|-------------|-----|---------|------|
+   751→   751→| `ai_question_generation` | AI-powered question generation | ✅ | ✅ | ✅ |
+   752→   752→| `ai_exam_hints` | AI exam coaching and hints | ✅ | ✅ | ❌ |
+   753→   753→| `offline_mode` | Offline exam mode with sync | ✅ | ✅ | ❌ |
+   754→   754→| `dark_mode` | Dark theme support | ✅ | ✅ | ✅ |
+   755→   755→| `push_notifications` | Push notification delivery | ✅ | ✅ | ✅ |
+   756→   756→| `payment_gateway` | Flutterwave payment processing | ✅ | ✅ | ✅ |
+   757→   757→| `biometric_login` | Fingerprint/face authentication | ✅ | ✅ | ❌ |
+   758→   758→| `multi_school` | Multi-school management | ✅ | ✅ | ❌ |
+   759→   759→| `advanced_analytics` | Advanced analytics dashboard | ✅ | ✅ | ❌ |
+   760→   760→| `export_pdf` | PDF export functionality | ✅ | ✅ | ✅ |
+   761→   761→
+   762→   762→## Appendix C: Database Connection Pool Configuration
+   763→   763→
+   764→   764→| Environment | `DB_POOL_MIN` | `DB_POOL_MAX` | Rationale |
+   765→   765→|------------|--------------|--------------|-----------|
+   766→   766→| Development | 2 | 10 | Low traffic, single developer |
+   767→   767→| Staging | 2 | 20 | Moderate traffic, testing |
+   768→   768→| Production | 5 | 50 | High traffic, concurrent users during exam periods |
+   769→   769→
+   770→   770→The `DatabasePoolManager` (`lib/core/database/database_pool_manager.dart`) manages connection pooling. During peak exam periods (e.g., WAEC/NECO/JAMB seasons), the production pool may need to be temporarily increased.
+   771→   771→
