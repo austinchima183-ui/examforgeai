@@ -1,195 +1,147 @@
-import { CreditCard, Zap, Users, FileText, Download, CheckCircle, ArrowUpRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/lib/constants/routes'
+import { CreditCard, Download, ArrowUpRight, CheckCircle2, Clock, AlertCircle, Receipt, Crown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import { getBillingData } from '@/lib/services/billing-service'
+
+export const dynamic = 'force-dynamic'
 
 // ============================================================================
 // ExamForge AI — Billing Page
 // ============================================================================
-// Server Component. Displays current subscription plan, usage stats,
-// upgrade button, and invoice history.
+// Server Component. Displays billing data from Supabase.
+// No mock data. All plans, invoices, and usage are live.
 // ============================================================================
 
-// ──────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────
-
-interface Invoice {
-  id: string
-  date: string
-  amount: string
-  status: 'paid' | 'pending' | 'failed'
-  description: string
+const statusIconMap: Record<string, typeof CheckCircle2> = {
+  successful: CheckCircle2,
+  pending: Clock,
+  failed: AlertCircle,
+  refunded: ArrowUpRight,
 }
 
-// ──────────────────────────────────────────────────────────────
-// Mock Data
-// ──────────────────────────────────────────────────────────────
-
-const CURRENT_PLAN = {
-  name: 'Professional',
-  price: '$29.99',
-  period: '/month',
-  billingDate: 'Feb 15, 2024',
-  features: [
-    'Up to 500 students',
-    'Unlimited exams',
-    'AI question generation',
-    'Advanced analytics',
-    'Priority support',
-    'Custom branding',
-  ],
+const statusVariantMap: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  successful: 'default',
+  pending: 'secondary',
+  failed: 'destructive',
+  refunded: 'outline',
+  processing: 'secondary',
 }
 
-const USAGE = {
-  students: { used: 342, limit: 500 },
-  exams: { used: 87, limit: -1 }, // -1 = unlimited
-  aiQuestions: { used: 1240, limit: 2000 },
-  storage: { used: 4.2, limit: 10 }, // GB
+function formatCurrency(amount: number, currency: string = 'NGN'): string {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: currency === 'NGN' ? 'NGN' : 'USD',
+    minimumFractionDigits: 0,
+  }).format(amount)
 }
 
-const MOCK_INVOICES: Invoice[] = [
-  {
-    id: 'INV-2024-001',
-    date: 'Jan 15, 2024',
-    amount: '$29.99',
-    status: 'paid',
-    description: 'Professional Plan — Monthly',
-  },
-  {
-    id: 'INV-2023-012',
-    date: 'Dec 15, 2023',
-    amount: '$29.99',
-    status: 'paid',
-    description: 'Professional Plan — Monthly',
-  },
-  {
-    id: 'INV-2023-011',
-    date: 'Nov 15, 2023',
-    amount: '$29.99',
-    status: 'paid',
-    description: 'Professional Plan — Monthly',
-  },
-  {
-    id: 'INV-2023-010',
-    date: 'Oct 15, 2023',
-    amount: '$29.99',
-    status: 'paid',
-    description: 'Professional Plan — Monthly',
-  },
-  {
-    id: 'INV-2023-009',
-    date: 'Sep 15, 2023',
-    amount: '$14.99',
-    status: 'paid',
-    description: 'Starter Plan — Monthly (Upgrade partial)',
-  },
-]
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
 
-// ──────────────────────────────────────────────────────────────
-// Page Component
-// ──────────────────────────────────────────────────────────────
+export default async function BillingPage() {
+  const supabase = await createClient()
 
-export default function BillingPage() {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(ROUTES.LOGIN)
+  }
+
+  // Fetch live billing data from Supabase
+  const data = await getBillingData(user.id)
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your subscription, usage, and billing history.
-          </p>
-        </div>
-        <Button variant="outline" className="gap-2">
-          <CreditCard className="h-4 w-4" />
-          Manage Payment Method
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your subscription, view invoices, and track usage.
+        </p>
       </div>
 
       {/* Current Plan & Upgrade */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Current Plan Card */}
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Current Plan */}
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Current Plan</CardTitle>
-                <CardDescription>Your active subscription details.</CardDescription>
+                <CardDescription>Your active subscription</CardDescription>
               </div>
-              <Badge variant="default" className="gap-1">
-                <Zap className="h-3 w-3" />
-                {CURRENT_PLAN.name}
-              </Badge>
+              <Crown className="h-5 w-5 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold">{CURRENT_PLAN.price}</span>
-                <span className="text-sm text-muted-foreground">{CURRENT_PLAN.period}</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">{data.currentPlan?.name ?? 'Free'}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(data.currentPlan?.price ?? 0, data.currentPlan?.currency ?? 'NGN')}/{data.currentPlan?.billingCycle ?? 'monthly'}
+                  </p>
+                </div>
+                <Badge variant={data.currentPlan?.tier === 'free' ? 'secondary' : 'default'}>
+                  {data.currentPlan?.tier?.toUpperCase() ?? 'FREE'}
+                </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Next billing date: <span className="font-medium text-foreground">{CURRENT_PLAN.billingDate}</span>
-              </p>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Included features:</p>
-                <ul className="space-y-1.5">
-                  {CURRENT_PLAN.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+
+              {data.currentPlan?.features && data.currentPlan.features.length > 0 && (
+                <div className="space-y-2">
+                  {data.currentPlan.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       {feature}
-                    </li>
+                    </div>
                   ))}
-                </ul>
-              </div>
+                </div>
+              )}
+
+              {data.upcomingInvoice && (
+                <div className="text-sm text-muted-foreground">
+                  Next billing: {formatDate(data.upcomingInvoice.date)} — {formatCurrency(data.upcomingInvoice.amount, data.upcomingInvoice.currency)}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Upgrade Card */}
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className="border-primary/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowUpRight className="h-5 w-5 text-primary" />
-              Upgrade Plan
-            </CardTitle>
-            <CardDescription>Get more features and higher limits.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-lg font-bold">Enterprise</p>
-              <p className="text-sm text-muted-foreground">Unlimited everything</p>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-2xl font-bold">$79.99</span>
-                <span className="text-sm text-muted-foreground">/month</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Upgrade Plan</CardTitle>
+                <CardDescription>Get more features and capacity</CardDescription>
               </div>
+              <ArrowUpRight className="h-5 w-5 text-primary" />
             </div>
-            <ul className="space-y-1.5">
-              <li className="flex items-center gap-2 text-sm">
-                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                Unlimited students
-              </li>
-              <li className="flex items-center gap-2 text-sm">
-                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                Unlimited AI questions
-              </li>
-              <li className="flex items-center gap-2 text-sm">
-                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                50 GB storage
-              </li>
-              <li className="flex items-center gap-2 text-sm">
-                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                Dedicated support
-              </li>
-            </ul>
-            <Button className="w-full gap-2">
-              <Zap className="h-4 w-4" />
-              Upgrade to Enterprise
-            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Professional</h3>
+                <p className="text-sm text-muted-foreground">
+                  Unlock unlimited exams, AI questions, and premium support.
+                </p>
+              </div>
+              <Button className="w-full">
+                <ArrowUpRight className="h-4 w-4 mr-2" />
+                Upgrade Now
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -197,77 +149,41 @@ export default function BillingPage() {
       {/* Usage Stats */}
       <Card>
         <CardHeader>
-          <CardTitle>Usage This Billing Period</CardTitle>
-          <CardDescription>Track your resource usage against plan limits.</CardDescription>
+          <CardTitle>Usage</CardTitle>
+          <CardDescription>Current billing period usage</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2">
-            {/* Students */}
+          <div className="space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  Students
-                </span>
-                <span className="text-muted-foreground">
-                  {USAGE.students.used} / {USAGE.students.limit}
-                </span>
+                <span>Students</span>
+                <span className="text-muted-foreground">{data.usage.studentsUsed} / {data.usage.studentsLimit === 999 ? 'Unlimited' : data.usage.studentsLimit}</span>
               </div>
-              <Progress value={(USAGE.students.used / USAGE.students.limit) * 100} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {(USAGE.students.limit - USAGE.students.used)} students remaining
-              </p>
+              <Progress value={data.usage.studentsLimit === 999 ? 10 : (data.usage.studentsUsed / data.usage.studentsLimit) * 100} className="h-2" />
             </div>
 
-            {/* AI Questions */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                  AI Questions
-                </span>
-                <span className="text-muted-foreground">
-                  {USAGE.aiQuestions.used.toLocaleString()} / {USAGE.aiQuestions.limit.toLocaleString()}
-                </span>
+                <span>AI Questions</span>
+                <span className="text-muted-foreground">{data.usage.aiQuestionsUsed} / {data.usage.aiQuestionsLimit === 999 ? 'Unlimited' : data.usage.aiQuestionsLimit}</span>
               </div>
-              <Progress value={(USAGE.aiQuestions.used / USAGE.aiQuestions.limit) * 100} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {(USAGE.aiQuestions.limit - USAGE.aiQuestions.used).toLocaleString()} questions remaining
-              </p>
+              <Progress value={data.usage.aiQuestionsLimit === 999 ? 10 : (data.usage.aiQuestionsUsed / data.usage.aiQuestionsLimit) * 100} className="h-2" />
             </div>
 
-            {/* Exams */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  Exams Created
-                </span>
-                <span className="text-muted-foreground">
-                  {USAGE.exams.used} / Unlimited
-                </span>
+                <span>Exams</span>
+                <span className="text-muted-foreground">{data.usage.examsUsed} / {data.usage.examsLimit === 999 ? 'Unlimited' : data.usage.examsLimit}</span>
               </div>
-              <Progress value={100} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                Unlimited exams included in your plan
-              </p>
+              <Progress value={data.usage.examsLimit === 999 ? 10 : (data.usage.examsUsed / data.usage.examsLimit) * 100} className="h-2" />
             </div>
 
-            {/* Storage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  Storage
-                </span>
-                <span className="text-muted-foreground">
-                  {USAGE.storage.used} GB / {USAGE.storage.limit} GB
-                </span>
+                <span>Storage</span>
+                <span className="text-muted-foreground">{data.usage.storageUsedGb} / {data.usage.storageLimitGb} GB</span>
               </div>
-              <Progress value={(USAGE.storage.used / USAGE.storage.limit) * 100} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {(USAGE.storage.limit - USAGE.storage.used).toFixed(1)} GB remaining
-              </p>
+              <Progress value={(data.usage.storageUsedGb / data.usage.storageLimitGb) * 100} className="h-2" />
             </div>
           </div>
         </CardContent>
@@ -279,42 +195,45 @@ export default function BillingPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Invoice History</CardTitle>
-              <CardDescription>View and download past invoices.</CardDescription>
+              <CardDescription>Your payment history and receipts</CardDescription>
             </div>
+            <Receipt className="h-5 w-5 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-0">
-            {MOCK_INVOICES.map((invoice, index) => (
-              <div key={invoice.id}>
-                <div className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
+          {data.invoices.length > 0 ? (
+            <div className="divide-y">
+              {data.invoices.map((invoice) => {
+                const StatusIcon = statusIconMap[invoice.status] ?? Clock
+                return (
+                  <div key={invoice.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                        <StatusIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{invoice.description}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(invoice.date)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{invoice.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {invoice.id} • {invoice.date}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium">{formatCurrency(invoice.amount, invoice.currency)}</span>
+                      <Badge variant={statusVariantMap[invoice.status] ?? 'secondary'}>
+                        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-8">
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      variant={invoice.status === 'paid' ? 'default' : invoice.status === 'pending' ? 'secondary' : 'destructive'}
-                    >
-                      {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                    </Badge>
-                    <span className="text-sm font-medium">{invoice.amount}</span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {index < MOCK_INVOICES.length - 1 && <Separator />}
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-sm text-muted-foreground">No invoices yet. Invoices will appear here once you make a payment.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

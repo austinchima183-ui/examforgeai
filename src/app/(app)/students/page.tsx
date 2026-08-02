@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getStudentsData } from '@/lib/services/users-service'
 import type { StudentListItem } from '@/lib/services/users-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Students Page
 // ============================================================================

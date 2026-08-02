@@ -148,14 +148,15 @@ export default function NotificationsPage() {
 
   // Subscribe to realtime notifications
   useEffect(() => {
-    // Fetch initial data — setState is called inside the async callback, not directly in the effect
     let cancelled = false
+    let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null
 
-    async function load() {
+    async function setup() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || cancelled) return
 
+      // Fetch initial data
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -166,7 +167,6 @@ export default function NotificationsPage() {
       if (cancelled) return
 
       if (error) {
-        console.error('Error fetching notifications:', error)
         setLoading(false)
         return
       }
@@ -184,75 +184,87 @@ export default function NotificationsPage() {
 
       setNotifications(items)
       setLoading(false)
+
+      // Subscribe to realtime notifications (filtered by user_id)
+      channel = supabase
+        .channel('notifications-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: { new: NotificationRow }) => {
+            const newNotification = payload.new
+            // Deduplication: skip if already in the list
+            setNotifications(prev => {
+              if (prev.some(n => n.id === newNotification.id)) return prev
+              const display: DisplayNotification = {
+                id: newNotification.id,
+                title: newNotification.title,
+                description: newNotification.body,
+                type: newNotification.type,
+                priority: newNotification.priority,
+                read: newNotification.is_read,
+                createdAt: newNotification.created_at,
+                actionUrl: newNotification.action_url,
+              }
+              return [display, ...prev]
+            })
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: { new: NotificationRow }) => {
+            const updated = payload.new
+            setNotifications(prev =>
+              prev.map(n =>
+                n.id === updated.id
+                  ? {
+                      ...n,
+                      read: updated.is_read,
+                      priority: updated.priority,
+                    }
+                  : n
+              )
+            )
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: { old: { id: string } }) => {
+            setNotifications(prev => prev.filter(n => n.id !== payload.old.id))
+          }
+        )
+        .subscribe((status: string) => {
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            // Supabase will attempt to reconnect automatically
+          }
+        })
     }
 
-    load()
-
-    const supabase = createClient()
-
-    // Subscribe to new notifications via Realtime
-    const channel = supabase
-      .channel('notifications-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-        },
-        (payload: { new: NotificationRow }) => {
-          const newNotification = payload.new
-          const display: DisplayNotification = {
-            id: newNotification.id,
-            title: newNotification.title,
-            description: newNotification.body,
-            type: newNotification.type,
-            priority: newNotification.priority,
-            read: newNotification.is_read,
-            createdAt: newNotification.created_at,
-            actionUrl: newNotification.action_url,
-          }
-          setNotifications(prev => [display, ...prev])
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-        },
-        (payload: { new: NotificationRow }) => {
-          const updated = payload.new
-          setNotifications(prev =>
-            prev.map(n =>
-              n.id === updated.id
-                ? {
-                    ...n,
-                    read: updated.is_read,
-                    priority: updated.priority,
-                  }
-                : n
-            )
-          )
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-        },
-        (payload: { old: { id: string } }) => {
-          setNotifications(prev => prev.filter(n => n.id !== payload.old.id))
-        }
-      )
-      .subscribe()
+    setup()
 
     return () => {
       cancelled = true
-      supabase.removeChannel(channel)
+      if (channel) {
+        const supabase = createClient()
+        supabase.removeChannel(channel)
+      }
     }
   }, [fetchNotifications])
 

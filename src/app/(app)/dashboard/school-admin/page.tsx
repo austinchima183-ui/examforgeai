@@ -20,6 +20,8 @@ import {
 import Link from 'next/link'
 import { getSchoolAdminStats, getSchoolAdminActivities } from '@/lib/services/dashboard-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — School Admin Dashboard
 // ============================================================================

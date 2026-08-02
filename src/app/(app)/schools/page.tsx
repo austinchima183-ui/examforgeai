@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getSchoolsData } from '@/lib/services/schools-service'
 import type { SchoolListItem } from '@/lib/services/schools-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Schools Management Page
 // ============================================================================

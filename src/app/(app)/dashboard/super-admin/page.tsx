@@ -22,6 +22,8 @@ import {
 import Link from 'next/link'
 import { getSuperAdminStats, getSuperAdminActivities } from '@/lib/services/dashboard-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Super Admin Dashboard
 // ============================================================================

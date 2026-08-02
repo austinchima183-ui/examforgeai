@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { ROUTES } from '@/lib/constants/routes'
 import type { UserRole } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Dashboard Redirector
 // ============================================================================

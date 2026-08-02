@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { RealtimeProvider } from '@/lib/hooks/use-realtime-provider'
 
 // ============================================================================
 // ExamForge AI — Authenticated Layout (AppShell)
@@ -23,7 +24,8 @@ export default function AppLayout({
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <RealtimeProvider>
+      <div className="min-h-screen flex bg-background">
       {/* Desktop Sidebar */}
       {!isMobile && (
         <Sidebar
@@ -56,6 +58,7 @@ export default function AppLayout({
           </div>
         </main>
       </div>
-    </div>
+      </div>
+    </RealtimeProvider>
   )
 }

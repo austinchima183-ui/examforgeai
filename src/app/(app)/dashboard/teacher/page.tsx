@@ -19,6 +19,8 @@ import {
 import Link from 'next/link'
 import { getTeacherStats, getTeacherActivities } from '@/lib/services/dashboard-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Teacher Dashboard
 // ============================================================================

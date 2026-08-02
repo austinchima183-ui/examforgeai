@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getParentsData } from '@/lib/services/users-service'
 import type { ParentListItem } from '@/lib/services/users-service'
 
+export const dynamic = 'force-dynamic'
+
 // ============================================================================
 // ExamForge AI — Parents Page
 // ============================================================================

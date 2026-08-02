@@ -135,6 +135,21 @@ export const ROUTES = {
 
   // Analytics
   ANALYTICS: '/analytics',
+
+  // Reports
+  REPORTS: '/reports',
+
+  // Search
+  SEARCH: '/search',
+
+  // CBT
+  CBT: '/cbt',
+
+  // Results
+  RESULTS: '/results',
+
+  // Question Bank
+  QUESTION_BANK: '/question-bank',
 } as const
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES]
@@ -445,12 +460,17 @@ export const MAIN_NAV: NavSection[] = [
     items: [
       {
         title: 'All Exams',
-        href: ROUTES.EXAMS,
+        href: ROUTES.CBT,
         icon: FileText,
       },
       {
+        title: 'Results',
+        href: ROUTES.RESULTS,
+        icon: ClipboardList,
+      },
+      {
         title: 'Question Bank',
-        href: ROUTES.QUESTIONS,
+        href: ROUTES.QUESTION_BANK,
         icon: HelpCircle,
       },
     ],
@@ -682,6 +702,17 @@ export const MAIN_NAV: NavSection[] = [
         href: ROUTES.ANALYTICS,
         icon: BarChart3,
         requiredRoles: ['teacher', 'school_admin', 'super_admin'],
+      },
+      {
+        title: 'Reports',
+        href: ROUTES.REPORTS,
+        icon: FileSpreadsheet,
+        requiredRoles: ['teacher', 'school_admin', 'super_admin'],
+      },
+      {
+        title: 'Search',
+        href: ROUTES.SEARCH,
+        icon: Globe,
       },
       {
         title: 'Settings',

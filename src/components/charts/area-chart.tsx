@@ -17,7 +17,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 // ============================================================================
 
 export interface AreaChartProps {
-  data: Record<string, unknown>[]
+  data: any[]
   xKey: string
   yKeys: string[]
   colors?: string[]
