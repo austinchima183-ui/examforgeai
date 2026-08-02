@@ -12,7 +12,7 @@ export default defineConfig({
     timeout: 15_000,
   },
   use: {
-    baseURL: 'https://my-project-austinchima183-2014s-projects.vercel.app',
+    baseURL: 'https://examforge-ai.vercel.app',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
