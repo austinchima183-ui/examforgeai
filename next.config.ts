@@ -5,6 +5,23 @@ import type { NextConfig } from 'next'
 // ============================================================================
 
 const securityHeaders = [
+  // CORS — restrict to production origin only (replaces Vercel's default access-control-allow-origin: *)
+  {
+    key: 'Access-Control-Allow-Origin',
+    value: 'https://examforge-ai.vercel.app',
+  },
+  {
+    key: 'Access-Control-Allow-Methods',
+    value: 'GET,POST,PUT,DELETE,OPTIONS',
+  },
+  {
+    key: 'Access-Control-Allow-Headers',
+    value: 'Content-Type,Authorization,x-flutterwave-signature',
+  },
+  {
+    key: 'Access-Control-Max-Age',
+    value: '86400',
+  },
   // Content Security Policy — strict policy preventing XSS
   {
     key: 'Content-Security-Policy',
@@ -53,7 +70,8 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // NOTE: 'output: standalone' removed — incompatible with Vercel's serverless deployment.
+  // Use 'standalone' only for self-hosted (Docker/bare-metal) deployments.
   reactStrictMode: true,
   images: {
     remotePatterns: [

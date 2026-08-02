@@ -55,7 +55,15 @@ export async function POST(request: NextRequest) {
     // Forward the original verif-hash header so the Edge Function can
     // also verify the signature independently.
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!SUPABASE_SERVICE_KEY) {
+      console.error('[WEBHOOK] FATAL: SUPABASE_SERVICE_ROLE_KEY is not set. Cannot forward to Edge Function.')
+      return NextResponse.json(
+        { error: 'Webhook processing unavailable — server misconfiguration' },
+        { status: 503 }
+      )
+    }
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/flutterwave-webhook`, {
       method: 'POST',
