@@ -333,6 +333,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           IconButton(
             icon: Icon(Icons.close, size: Spacings.smIcon, color: cs.error),
             onPressed: () => ref.read(authProvider.notifier).clearError(),
+            tooltip: 'Dismiss error',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),

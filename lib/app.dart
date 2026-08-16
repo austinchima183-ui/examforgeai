@@ -119,16 +119,94 @@ class _ExamForgeAppState extends ConsumerState<ExamForgeApp>
 
       // ─── Builder ────────────────────────────────────────────────────
       // Applies global adjustments to every page:
-      // 1. Clamps text scaling to a reasonable range so large
+      // 1. Adds a skip-to-content link for keyboard/screen-reader users.
+      // 2. Clamps text scaling to a reasonable range so large
       //    accessibility text sizes don't break layouts.
-      // 2. Provides a [navigatorKey] access point for overlay operations.
+      // 3. Provides a [navigatorKey] access point for overlay operations.
       builder: (context, child) {
         return MediaQuery.withClampedTextScaling(
           minScaleFactor: 0.8,
           maxScaleFactor: 1.5,
-          child: child ?? const SizedBox.shrink(),
+          child: _SkipToContentLink(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
+    );
+  }
+}
+
+// ─── Skip-to-Content Link ─────────────────────────────────────────────────────
+
+/// A visually-hidden skip link that appears on keyboard focus, allowing
+/// screen-reader and keyboard users to jump directly to the main content
+/// area, bypassing repetitive navigation.
+///
+/// On focus the link expands into a visible banner; on activation it
+/// moves focus to the first focusable child inside the main content.
+class _SkipToContentLink extends StatefulWidget {
+  const _SkipToContentLink({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_SkipToContentLink> createState() => _SkipToContentLinkState();
+}
+
+class _SkipToContentLinkState extends State<_SkipToContentLink> {
+  final _skipFocusNode = FocusNode();
+  final _contentFocusNode = FocusNode(debugLabel: 'main-content');
+
+  @override
+  void dispose() {
+    _skipFocusNode.dispose();
+    _contentFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        // ── Skip link (visible only when focused) ──────────────────────
+        Focus(
+          focusNode: _skipFocusNode,
+          child: Semantics(
+            container: true,
+            link: true,
+            label: 'Skip to main content',
+            child: Material(
+              color: _skipFocusNode.hasFocus ? cs.primary : Colors.transparent,
+              child: InkWell(
+                onTap: () => _contentFocusNode.requestFocus(),
+                focusNode: _skipFocusNode,
+                child: SizedBox(
+                  height: _skipFocusNode.hasFocus ? 48 : 0,
+                  child: Center(
+                    child: Text(
+                      'Skip to main content',
+                      style: TextStyle(
+                        color: _skipFocusNode.hasFocus
+                            ? cs.onPrimary
+                            : Colors.transparent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // ── Main content with focus target ─────────────────────────────
+        Focus(
+          focusNode: _contentFocusNode,
+          child: widget.child,
+        ),
+      ],
     );
   }
 }

@@ -509,9 +509,29 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 ///
 /// Automatically reconnects on transient failures and emits the latest
 /// state to any listener.
+///
+/// Includes a 10-second timeout: if the stream doesn't emit within 10s
+/// (e.g. on Flutter Web where the initial session fetch may silently fail
+/// due to CORS or network issues), we emit an empty-auth state so the
+/// router can proceed to the login screen instead of hanging forever.
 final authStateProvider = StreamProvider<sb.AuthState>((ref) {
   final supabaseClient = ref.watch(supabaseClientProvider);
-  return supabaseClient.auth.onAuthStateChange;
+  final authStream = supabaseClient.auth.onAuthStateChange;
+
+  // Timeout wrapper: if the stream doesn't emit within 10 seconds,
+  // emit a synthetic "no session" state so the app can proceed.
+  return authStream.timeout(
+    const Duration(seconds: 10),
+    onTimeout: (sink) {
+      AppLogger.warning('authStateProvider: stream timed out after 10s — '
+          'emitting empty auth state');
+      sink.add(sb.AuthState(
+        event: sb.AuthChangeEvent.initialSession,
+        session: null,
+      ));
+      sink.close();
+    },
+  );
 });
 
 /// Convenience provider that yields the currently authenticated [sb.User],

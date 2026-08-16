@@ -50,7 +50,7 @@ Test directory "test" not found.
 ## 4. Supabase Functions List
 
 ```
-$ npx supabase functions list --project-ref pzfnptrrnxkgodclyhft
+$ npx supabase functions list --project-ref <REDACTED_PROJECT_REF>
 
    ID                                   | NAME                        | SLUG                        | STATUS | VERSION | UPDATED_AT (UTC)    
   --------------------------------------|-----------------------------|-----------------------------|--------|---------|---------------------
@@ -78,7 +78,7 @@ $ npx supabase functions list --project-ref pzfnptrrnxkgodclyhft
 ## 5. Supabase Secrets List (Redacted)
 
 ```
-$ npx supabase secrets list --project-ref pzfnptrrnxkgodclyhft
+$ npx supabase secrets list --project-ref <REDACTED_PROJECT_REF>
 
   Name                             | Value          
   ---------------------------------|----------------
@@ -437,7 +437,7 @@ Source: `pubspec.yaml` → `version: 1.0.0+1`
 
 | Component                   | Value                                          |
 |-----------------------------|------------------------------------------------|
-| Supabase Project Ref        | pzfnptrrnxkgodclyhft                           |
+| Supabase Project Ref        | <REDACTED_PROJECT_REF>                           |
 | Supabase CLI Version        | 2.110.0                                        |
 | Flutter SDK Version         | 3.44.8 (stable)                                |
 | Database Tables             | 161                                            |

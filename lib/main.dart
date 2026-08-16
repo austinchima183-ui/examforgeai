@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,9 +19,17 @@ import 'core/utils/logger.dart';
 /// Must be set after [ProviderScope] is created in [runApp].
 late final ProviderContainer globalContainer;
 
+/// Logs a message to the browser console for production debugging.
+void _jsLog(String message) {
+  // In Flutter Web, print() maps to console.log() even in release mode.
+  // ignore: avoid_print_in_production
+  print(message);
+}
+
 void main() async {
   // ─── Ensure Flutter bindings ────────────────────────────────────────
   WidgetsFlutterBinding.ensureInitialized();
+  _jsLog('[ExamForge] Flutter bindings initialized');
 
   // ─── Lock orientations ──────────────────────────────────────────────
   await SystemChrome.setPreferredOrientations([
@@ -39,45 +49,46 @@ void main() async {
   );
 
   // ─── Initialize crash reporting FIRST (before any other bootstrap) ──
-  // ROOT CAUSE: CrashReporter.initialize() must be called before
-  // FlutterError.onError and PlatformDispatcher.instance.onError can be
-  // intercepted. Calling it after other init steps means crashes during
-  // Supabase/EnvConfig initialization would be silently lost.
   CrashReporter.initialize();
   AppLogger.info('Crash reporter initialized');
+  _jsLog('[ExamForge] Crash reporter initialized');
 
   // ─── Bootstrap sequence ─────────────────────────────────────────────
-  // Each step must complete before the next begins because later steps
-  // depend on earlier ones (e.g. Supabase needs EnvConfig values).
   try {
     // 1. Environment configuration — loads .env / dart-define values.
+    _jsLog('[ExamForge] Starting EnvConfig.initialize()...');
     await EnvConfig.initialize();
+    _jsLog('[ExamForge] EnvConfig initialized — url: ${EnvConfig.supabaseUrl.substring(0, 30)}...');
     AppLogger.info('Environment config initialized');
 
     // 2. Supabase — uses EnvConfig.supabaseUrl & .supabaseAnonKey.
-    await SupabaseConfig.initialize();
+    _jsLog('[ExamForge] Starting SupabaseConfig.initialize()...');
+    await SupabaseConfig.initialize().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        _jsLog('[ExamForge] Supabase initialization timed out after 10s!');
+        throw TimeoutException('Supabase initialization timed out');
+      },
+    );
+    _jsLog('[ExamForge] Supabase initialized successfully');
     AppLogger.info('Supabase initialized');
 
     // 3. App configuration — reads package info & resolves feature flags.
+    _jsLog('[ExamForge] Starting AppConfig.initialize()...');
     await AppConfig.initialize();
+    _jsLog('[ExamForge] App config initialized');
     AppLogger.info('App config initialized');
   } catch (e, stackTrace) {
     // If core services fail to initialize, we still want the app to
     // launch so the user sees an error screen rather than a crash.
+    _jsLog('[ExamForge] FATAL INIT ERROR: $e');
     AppLogger.critical(
       'Fatal initialization error',
       error: e,
       stackTrace: stackTrace,
     );
 
-    // In release builds, report to crash reporting (e.g. Firebase Crashlytics).
-    // In debug, the logger output is sufficient.
     if (kReleaseMode) {
-      // ROOT CAUSE: Original main.dart had a TODO comment for crash reporting
-      // but never wired CrashReporter.initialize(). This left production
-      // with NO crash capture — Flutter errors and platform errors were
-      // silently swallowed. CrashReporter was already initialized above,
-      // so now we just report the fatal bootstrap error.
       CrashReporter.reportFatalError(
         e,
         stackTrace,
@@ -87,6 +98,7 @@ void main() async {
   }
 
   // ─── Run the app ────────────────────────────────────────────────────
+  _jsLog('[ExamForge] Calling runApp()...');
   final container = ProviderContainer();
   globalContainer = container;
 
@@ -96,4 +108,5 @@ void main() async {
       child: const ExamForgeApp(),
     ),
   );
+  _jsLog('[ExamForge] runApp() called successfully');
 }

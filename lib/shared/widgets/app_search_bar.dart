@@ -228,10 +228,12 @@ class _AppSearchBarState extends State<AppSearchBar> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: _submit,
                   decoration: InputDecoration(
+                    labelText: widget.hint ?? 'Search',
                     hintText: widget.hint ?? 'Search…',
                     hintStyle: tt.bodyLarge?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
+                    floatingLabelAlignment: FloatingLabelAlignment.never,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,

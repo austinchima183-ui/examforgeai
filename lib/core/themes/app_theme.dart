@@ -1,12 +1,26 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 import 'app_typography.dart';
 import 'spacings.dart';
+
+/// Returns the target platform for theme configuration.
+///
+/// On web, defaults to [TargetPlatform.android] (Material design).
+/// On native iOS, returns [TargetPlatform.iOS] for Cupertino design.
+/// On all other native platforms, returns [TargetPlatform.android].
+TargetPlatform _resolveTargetPlatform() {
+  // On web, Platform is not available, so default to Android (Material).
+  if (kIsWeb) return TargetPlatform.android;
+  // On native platforms, detect iOS for Cupertino transitions.
+  // The `defaultTargetPlatform` from Flutter is safe on all platforms.
+  return defaultTargetPlatform == TargetPlatform.iOS
+      ? TargetPlatform.iOS
+      : TargetPlatform.android;
+}
 
 /// Root theme configuration for ExamForge AI.
 ///
@@ -44,7 +58,7 @@ class AppTheme {
       textTheme: textTheme,
       brightness: colorScheme.brightness,
       scaffoldBackgroundColor: colorScheme.surface,
-      platform: Platform.isIOS ? TargetPlatform.iOS : TargetPlatform.android,
+      platform: _resolveTargetPlatform(),
 
       // ── AppBar ──────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(

@@ -1,8 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+
+// Firebase Messaging is not available on web without initialization.
+// We conditionally import it and handle the web case gracefully.
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../core/utils/logger.dart';
 import 'storage_service.dart';
@@ -101,6 +104,14 @@ class NotificationService {
     _onForegroundMessage = onForegroundMessage;
     _onNotificationTap = onNotificationTap;
 
+    // On web, Firebase Messaging requires Firebase.initializeApp() first.
+    // Since we don't initialize Firebase on web, skip notifications gracefully.
+    if (kIsWeb) {
+      AppLogger.info('NotificationService skipped — Firebase Messaging not available on web');
+      _initialized = true;
+      return;
+    }
+
     try {
       // 1. Request permissions.
       final permissionGranted = await _requestPermissions();
@@ -149,44 +160,33 @@ class NotificationService {
   /// where permissions are granted by default on most API levels).
   Future<bool> _requestPermissions() async {
     try {
-      if (Platform.isIOS) {
-        final settings = await _messaging.requestPermission(
-          alert: true,
-          announcement: false,
-          badge: true,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: true,
-        );
-
-        final granted = settings.authorizationStatus ==
-                AuthorizationStatus.authorized ||
-            settings.authorizationStatus ==
-                AuthorizationStatus.provisional;
-
-        AppLogger.info(
-          'iOS notification permission: ${settings.authorizationStatus.name}',
-        );
-        return granted;
+      // On web, Firebase Messaging requires Firebase to be initialized.
+      // If Firebase hasn't been initialized, skip notifications gracefully.
+      if (kIsWeb) {
+        AppLogger.info('Notification permissions skipped — not supported on web without Firebase init');
+        return false;
       }
 
-      if (Platform.isAndroid) {
-        final settings = await _messaging.requestPermission();
-        final granted = settings.authorizationStatus ==
-                AuthorizationStatus.authorized ||
-            settings.authorizationStatus ==
-                AuthorizationStatus.provisional;
+      // On mobile, request notification permissions.
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
 
-        AppLogger.info(
-          'Android notification permission: ${settings.authorizationStatus.name}',
-        );
-        return granted;
-      }
+      final granted = settings.authorizationStatus ==
+              AuthorizationStatus.authorized ||
+          settings.authorizationStatus ==
+              AuthorizationStatus.provisional;
 
-      // Other platforms (web, macOS, etc.) — attempt the default request.
-      final settings = await _messaging.requestPermission();
-      return settings.authorizationStatus == AuthorizationStatus.authorized;
+      AppLogger.info(
+        'Notification permission: ${settings.authorizationStatus.name}',
+      );
+      return granted;
     } catch (e) {
       AppLogger.error('Failed to request notification permissions', error: e);
       return false;
@@ -438,7 +438,7 @@ class NotificationService {
             {
               'user_id': userId,
               'fcm_token': token,
-              'platform': Platform.operatingSystem,
+              'platform': kIsWeb ? 'web' : 'mobile',
               'updated_at': DateTime.now().toIso8601String(),
             },
             onConflict: 'user_id,fcm_token',

@@ -38,7 +38,7 @@ const ALLOWED_ORIGINS = (() => {
   const env = Deno.env.get('ENVIRONMENT') || 'development';
   switch (env) {
     case 'production':
-      return ['https://examforge.ai', 'https://www.examforge.ai', 'https://app.examforge.ai'];
+      return ['https://examforge.ai', 'https://www.examforge.ai', 'https://app.examforge.ai', 'https://web-alpha-bay-87.vercel.app', 'https://examforge-ai.vercel.app'];
     case 'staging':
       return ['https://staging.examforge.ai', 'https://staging-app.examforge.ai'];
     default:
@@ -79,6 +79,20 @@ Deno.serve(async (req: Request) => {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+
+  // ─── CSRF Defense-in-Depth: Validate Origin header ─────────────────────
+  const originCheck = (() => {
+    const origin = req.headers.get('Origin');
+    if (!origin) return { valid: true }; // Server-to-server requests
+    const ALLOWED = ALLOWED_ORIGINS; // Already defined in this file
+    return { valid: ALLOWED.includes(origin), origin };
+  })();
+  if (!originCheck.valid) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden — invalid origin', detail: `Origin "${originCheck.origin}" not allowed` }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   // ─── Verify authentication ────────────────────────────────────────────
